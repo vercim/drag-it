@@ -1,9 +1,9 @@
-package com.dragit.drag;
+package dev.vercim.dragit.drag;
 
-import com.dragit.DragIt;
-import com.dragit.DragItSettings;
-import com.dragit.mixin.accessor.PackScreenAccessor;
-import com.dragit.mixin.accessor.ResourcePackOrganizerAccessor;
+import dev.vercim.dragit.DragIt;
+import dev.vercim.dragit.DragItSettings;
+import dev.vercim.dragit.mixin.accessor.PackScreenAccessor;
+import dev.vercim.dragit.mixin.accessor.ResourcePackOrganizerAccessor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

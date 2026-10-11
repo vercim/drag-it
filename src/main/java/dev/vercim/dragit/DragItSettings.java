@@ -1,4 +1,4 @@
-package com.dragit;
+package dev.vercim.dragit;
 
 /**
  * Every tunable of the mod lives here. Rates are "per second": the per-frame blend factor is

@@ -1,4 +1,4 @@
-package com.dragit;
+package dev.vercim.dragit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

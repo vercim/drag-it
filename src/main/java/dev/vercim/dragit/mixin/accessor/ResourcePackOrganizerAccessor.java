@@ -1,4 +1,4 @@
-package com.dragit.mixin.accessor;
+package dev.vercim.dragit.mixin.accessor;
 
 import java.util.List;
 import net.minecraft.client.gui.screen.pack.ResourcePackOrganizer;

@@ -1,8 +1,8 @@
-package com.dragit.drag;
+package dev.vercim.dragit.drag;
 
-import com.dragit.mixin.accessor.EntryListWidgetAccessor;
-import com.dragit.mixin.accessor.PackListWidgetAccessor;
-import com.dragit.mixin.accessor.ResourcePackEntryAccessor;
+import dev.vercim.dragit.mixin.accessor.EntryListWidgetAccessor;
+import dev.vercim.dragit.mixin.accessor.PackListWidgetAccessor;
+import dev.vercim.dragit.mixin.accessor.ResourcePackEntryAccessor;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.screen.pack.PackListWidget;

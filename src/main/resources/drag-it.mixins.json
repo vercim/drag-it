@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8.5",
-  "package": "com.dragit.mixin",
+  "package": "dev.vercim.dragit.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
     "MouseMixin",
