@@ -8,7 +8,7 @@ plugins {
 stonecutter active file(".sc_active_version")
 
 stonecutter parameters {
-    constants.match(current.project.substringAfterLast('-'), "fabric")
+    constants.match(current.project.substringAfterLast('-'), "fabric", "neoforge")
 }
 
 tasks.register<org.gradle.api.tasks.Delete>("clean") {

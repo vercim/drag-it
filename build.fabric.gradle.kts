@@ -45,7 +45,7 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
+    mappings(loom.layered { officialMojangMappings() })
     // No Fabric API: the mod only needs Fabric Loader and Mixin.
     modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader_version")}")
 }
@@ -59,6 +59,7 @@ tasks.processResources {
     )
     inputs.properties(metadata)
     filesMatching("fabric.mod.json") { expand(metadata) }
+    exclude("META-INF/neoforge.mods.toml")
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -91,6 +92,8 @@ val verifyJar = tasks.register("verifyJar") {
             val configs = mod["mixins"] as? List<*> ?: error("fabric.mod.json registers no Mixin config")
             check("$modId.mixins.json" in configs) { "fabric.mod.json does not register $modId.mixins.json" }
             zip.getEntry("LICENSE_$modId") ?: error("LICENSE_$modId is missing from ${zip.name}")
+            check(zip.getEntry("META-INF/neoforge.mods.toml") == null) { "neoforge.mods.toml leaked into the Fabric JAR" }
+            check(zip.entries().asSequence().none { it.name.startsWith("dev/vercim/dragit/neoforge/") }) { "NeoForge classes leaked into the Fabric JAR" }
 
             for (path in configs.map { it.toString() }) {
                 val config = json(path)
@@ -155,7 +158,7 @@ publishMods {
         modrinth {
             projectId.set(modrinthProject)
             accessToken.set(modrinthToken)
-            displayName.set("Drag It! $publicModVersion")
+            displayName.set("Drag It! $publicModVersion Fabric")
             minecraftVersions.add(minecraftVersion)
         }
     }

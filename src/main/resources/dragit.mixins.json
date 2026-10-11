@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "dev.vercim.dragit.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MouseHandlerMixin",
+    "TransferableSelectionListMixin",
+    "PackSelectionScreenMixin",
+    "PackEntryMixin",
+    "ScreenMixin",
+    "accessor.AbstractSelectionListAccessor",
+    "accessor.TransferableSelectionListAccessor",
+    "accessor.PackSelectionScreenAccessor",
+    "accessor.PackEntryAccessor",
+    "accessor.PackSelectionModelAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

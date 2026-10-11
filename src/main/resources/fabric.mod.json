@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "drag-it",
+  "id": "dragit",
   "version": "${version}",
   "name": "Drag It!",
   "description": "Smooth drag & drop for the resource pack selection screen.",
@@ -13,9 +13,10 @@
     "issues": "https://github.com/vercim/drag-it/issues"
   },
   "license": "LGPL-3.0-only",
+  "icon": "icon.png",
   "environment": "client",
   "mixins": [
-    "drag-it.mixins.json"
+    "dragit.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_min_version}",

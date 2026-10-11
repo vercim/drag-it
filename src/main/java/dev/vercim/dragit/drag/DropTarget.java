@@ -3,8 +3,8 @@ package dev.vercim.dragit.drag;
 import dev.vercim.dragit.DragItSettings;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.client.gui.screen.pack.PackListWidget;
-import net.minecraft.resource.ResourcePackProfile;
+import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
+import net.minecraft.server.packs.repository.Pack;
 
 /**
  * Works out where a dragged pack would land: which list, and at which gap.
@@ -23,8 +23,8 @@ final class DropTarget {
 	 * never lifted. Required packs such as the built-in "Default" pack (required but not pinned in vanilla 1.21.1) are
 	 * <i>not</i> fixed: they can be re-ordered like any other pack, they just can never leave the enabled list.
 	 */
-	static boolean isFixed(ResourcePackProfile profile) {
-		return profile.isPinned();
+	static boolean isFixed(Pack profile) {
+		return profile.isFixedPosition();
 	}
 
 	/**
@@ -49,12 +49,12 @@ final class DropTarget {
 	 * @param allowed  per list: whether any of the packs may be dropped there at all (a required pack cannot be disabled...)
 	 */
 	static Result compute(
-		PackListWidget[] lists, List<ResourcePackProfile>[] profiles, ResourcePackProfile dragged, List<ResourcePackProfile> group,
+		TransferableSelectionList[] lists, List<Pack>[] profiles, Pack dragged, List<Pack> group,
 		int srcList, double pointerX, double pointerY, double probeY, boolean[] allowed
 	) {
 		int target = NO_LIST;
 		for (int i = 0; i < lists.length; i++) {
-			PackListWidget list = lists[i];
+			TransferableSelectionList list = lists[i];
 			int pad = DragItSettings.COLUMN_PADDING;
 			if (pointerX >= list.getX() - pad && pointerX <= list.getRight() + pad && pointerY >= list.getY() && pointerY <= list.getBottom()) {
 				target = i;
@@ -65,8 +65,8 @@ final class DropTarget {
 			return Result.NONE;
 		}
 
-		PackListWidget list = lists[target];
-		List<ResourcePackProfile> base = new ArrayList<>(profiles[target]);
+		TransferableSelectionList list = lists[target];
+		List<Pack> base = new ArrayList<>(profiles[target]);
 		base.removeAll(group);
 		int n = base.size();
 		if (!allowed[target]) {
@@ -93,7 +93,7 @@ final class DropTarget {
 					}
 				}
 			} else {
-				anchor = dragged.getInitialPosition().insert(new ArrayList<>(base), dragged, ResourcePackProfile::getPosition, true);
+				anchor = dragged.getDefaultPosition().insert(new ArrayList<>(base), dragged, Pack::selectionConfig, true);
 			}
 			anchor = Math.max(0, Math.min(n, anchor));
 			for (int p = 0; p < anchor; p++) {
