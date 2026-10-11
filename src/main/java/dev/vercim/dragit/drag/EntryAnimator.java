@@ -1,6 +1,6 @@
-package com.dragit.drag;
+package dev.vercim.dragit.drag;
 
-import com.dragit.DragItSettings;
+import dev.vercim.dragit.DragItSettings;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

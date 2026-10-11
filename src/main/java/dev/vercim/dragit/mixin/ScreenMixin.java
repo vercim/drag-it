@@ -1,6 +1,6 @@
-package com.dragit.mixin;
+package dev.vercim.dragit.mixin;
 
-import com.dragit.drag.DragController;
+import dev.vercim.dragit.drag.DragController;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.pack.PackScreen;

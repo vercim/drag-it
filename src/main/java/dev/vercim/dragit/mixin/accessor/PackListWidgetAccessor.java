@@ -1,4 +1,4 @@
-package com.dragit.mixin.accessor;
+package dev.vercim.dragit.mixin.accessor;
 
 import net.minecraft.client.gui.screen.pack.PackListWidget;
 import net.minecraft.client.gui.screen.pack.PackScreen;

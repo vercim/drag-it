@@ -1,9 +1,9 @@
-package com.dragit.mixin;
+package dev.vercim.dragit.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.dragit.drag.ControllerHolder;
-import com.dragit.mixin.accessor.PackListWidgetAccessor;
+import dev.vercim.dragit.drag.ControllerHolder;
+import dev.vercim.dragit.mixin.accessor.PackListWidgetAccessor;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.pack.PackListWidget;
 import org.spongepowered.asm.mixin.Mixin;

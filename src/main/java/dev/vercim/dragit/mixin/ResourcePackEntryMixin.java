@@ -1,12 +1,12 @@
-package com.dragit.mixin;
+package dev.vercim.dragit.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.dragit.DragItSettings;
-import com.dragit.drag.ControllerHolder;
-import com.dragit.drag.DragController;
-import com.dragit.mixin.accessor.PackListWidgetAccessor;
-import com.dragit.mixin.accessor.ResourcePackEntryAccessor;
+import dev.vercim.dragit.DragItSettings;
+import dev.vercim.dragit.drag.ControllerHolder;
+import dev.vercim.dragit.drag.DragController;
+import dev.vercim.dragit.mixin.accessor.PackListWidgetAccessor;
+import dev.vercim.dragit.mixin.accessor.ResourcePackEntryAccessor;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.pack.PackListWidget;

@@ -1,6 +1,6 @@
-package com.dragit.drag;
+package dev.vercim.dragit.drag;
 
-import com.dragit.DragItSettings;
+import dev.vercim.dragit.DragItSettings;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
