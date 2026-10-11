@@ -4,13 +4,22 @@
   "version": "${version}",
   "name": "Drag It!",
   "description": "Smooth drag & drop for the resource pack selection screen.",
-  "authors": ["Drag It!"],
-  "license": "MIT",
+  "authors": [
+    "vercim"
+  ],
+  "contact": {
+    "homepage": "https://github.com/vercim/drag-it",
+    "sources": "https://github.com/vercim/drag-it",
+    "issues": "https://github.com/vercim/drag-it/issues"
+  },
+  "license": "LGPL-3.0-only",
   "environment": "client",
-  "mixins": ["drag-it.mixins.json"],
+  "mixins": [
+    "drag-it.mixins.json"
+  ],
   "depends": {
-    "fabricloader": ">=0.16.0",
-    "minecraft": "~1.21.1",
-    "java": ">=21"
+    "fabricloader": ">=${fabric_loader_min_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=${java_version}"
   }
 }
