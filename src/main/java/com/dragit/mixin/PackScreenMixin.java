@@ -40,9 +40,6 @@ public abstract class PackScreenMixin extends Screen implements ControllerHolder
 
 	@Inject(method = "close", at = @At("HEAD"))
 	private void dragit$onClose(CallbackInfo ci) {
-		if (com.dragit.dev.SelfTest.ENABLED) {
-			com.dragit.DragIt.LOGGER.info("[SelfTest] PackScreen.close()", new Throwable());
-		}
 		this.dragit$getController().reset();
 	}
 }
