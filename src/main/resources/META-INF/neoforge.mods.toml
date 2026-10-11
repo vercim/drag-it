@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "${neoforge_loader_version_range}"
+license = "LGPL-3.0-only"
+
+[[mods]]
+modId = "dragit"
+version = "${version}"
+displayName = "Drag It!"
+logoFile = "icon.png"
+logoBlur = false
+displayURL = "https://github.com/vercim/drag-it"
+issueTrackerURL = "https://github.com/vercim/drag-it/issues"
+authors = "vercim"
+description = '''
+Smooth drag & drop for the resource pack selection screen.
+'''
+
+[[dependencies.dragit]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.dragit]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},1.21.2)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[mixins]]
+config = "dragit.mixins.json"

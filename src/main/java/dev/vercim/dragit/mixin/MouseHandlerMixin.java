@@ -1,10 +1,10 @@
 package dev.vercim.dragit.mixin;
 
+import com.mojang.blaze3d.platform.Window;
 import dev.vercim.dragit.drag.DragController;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.Mouse;
-import net.minecraft.client.gui.screen.pack.PackScreen;
-import net.minecraft.client.util.Window;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.MouseHandler;
+import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,27 +17,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Button events are the one place where a press can be held back from vanilla (so the arrows only fire on a real
  * click, not when a drag starts on them) and where a release is seen no matter what is under the cursor.
  */
-@Mixin(Mouse.class)
-public abstract class MouseMixin {
+@Mixin(MouseHandler.class)
+public abstract class MouseHandlerMixin {
 	@Shadow
 	@Final
-	private MinecraftClient client;
+	private Minecraft minecraft;
 	@Shadow
-	private double x;
+	private double xpos;
 	@Shadow
-	private double y;
+	private double ypos;
 
-	@Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
 	private void dragit$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
-		if (!(this.client.currentScreen instanceof PackScreen screen) || this.client.getOverlay() != null) {
+		if (!(this.minecraft.screen instanceof PackSelectionScreen screen) || this.minecraft.getOverlay() != null) {
 			return;
 		}
-		Window w = this.client.getWindow();
-		if (window != w.getHandle()) {
+		Window w = this.minecraft.getWindow();
+		if (window != w.getWindow()) {
 			return;
 		}
-		double guiX = this.x * w.getScaledWidth() / w.getWidth();
-		double guiY = this.y * w.getScaledHeight() / w.getHeight();
+		double guiX = this.xpos * w.getGuiScaledWidth() / w.getScreenWidth();
+		double guiY = this.ypos * w.getGuiScaledHeight() / w.getScreenHeight();
 		if (DragController.of(screen).onMouseButton(guiX, guiY, button, action == GLFW.GLFW_PRESS, mods)) {
 			ci.cancel();
 		}

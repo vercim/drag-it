@@ -1,9 +1,10 @@
 package dev.vercim.dragit.drag;
 
+import com.mojang.blaze3d.platform.Window;
 import dev.vercim.dragit.DragIt;
 import dev.vercim.dragit.DragItSettings;
-import dev.vercim.dragit.mixin.accessor.PackScreenAccessor;
-import dev.vercim.dragit.mixin.accessor.ResourcePackOrganizerAccessor;
+import dev.vercim.dragit.mixin.accessor.PackSelectionModelAccessor;
+import dev.vercim.dragit.mixin.accessor.PackSelectionScreenAccessor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,20 +12,19 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ConfirmScreen;
-import net.minecraft.client.gui.screen.pack.PackListWidget;
-import net.minecraft.client.gui.screen.pack.PackScreen;
-import net.minecraft.client.gui.screen.pack.ResourcePackOrganizer;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.Window;
-import net.minecraft.resource.ResourcePackProfile;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.packs.PackSelectionModel;
+import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.packs.repository.Pack;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Drag & drop state machine of one {@link PackScreen}.
+ * Drag & drop state machine of one {@link PackSelectionScreen}.
  *
  * <pre>
  * IDLE --press on a movable entry--> PENDING --cursor travels past the threshold--> DRAGGING
@@ -33,7 +33,7 @@ import org.lwjgl.glfw.GLFW;
  * </pre>
  *
  * Everything is driven by real time ({@code System.nanoTime()} per frame), never by ticks. All order/enable changes go
- * through the vanilla {@link ResourcePackOrganizer}; this class stores no pack state of its own.
+ * through the vanilla {@link PackSelectionModel}; this class stores no pack state of its own.
  */
 public final class DragController {
 	public static final int AVAILABLE = 0;
@@ -54,7 +54,7 @@ public final class DragController {
 		drawingGhost = value;
 	}
 
-	public static DragController of(PackScreen screen) {
+	public static DragController of(PackSelectionScreen screen) {
 		return ((ControllerHolder) screen).dragit$getController();
 	}
 
@@ -67,7 +67,7 @@ public final class DragController {
 	private record Grab(int list, int index, String name) {
 	}
 
-	final PackScreen screen;
+	final PackSelectionScreen screen;
 	final EntryAnimator animator = new EntryAnimator();
 	final Indicator[] indicators = {new Indicator(), new Indicator()};
 
@@ -76,7 +76,7 @@ public final class DragController {
 	String packId;
 	/** Every pack lifted by the current drag (list order); more than one when a multi-selection is dragged. */
 	final List<String> dragIds = new ArrayList<>();
-	final List<ResourcePackProfile> dragProfiles = new ArrayList<>();
+	final List<Pack> dragProfiles = new ArrayList<>();
 	int settleList;
 	DropTarget.Result drop = DropTarget.Result.NONE;
 	double ghostX;
@@ -103,7 +103,7 @@ public final class DragController {
 	private double dt;
 	private boolean faulted;
 
-	public DragController(PackScreen screen) {
+	public DragController(PackSelectionScreen screen) {
 		this.screen = screen;
 	}
 
@@ -127,7 +127,7 @@ public final class DragController {
 	}
 
 	/** Extra vertical offset (GUI px) to draw this entry at. */
-	public float offsetFor(PackListWidget widget, String name, int index) {
+	public float offsetFor(TransferableSelectionList widget, String name, int index) {
 		int list = listOf(widget);
 		return list < 0 ? 0 : animator.offset(list, name, index, ListGeometry.itemHeight(widget));
 	}
@@ -135,36 +135,36 @@ public final class DragController {
 	// ---------------------------------------------------------------- screen access
 
 	private boolean ready() {
-		PackScreenAccessor access = (PackScreenAccessor) (Object) screen;
+		PackSelectionScreenAccessor access = (PackSelectionScreenAccessor) (Object) screen;
 		return access.dragit$getAvailableList() != null
 			&& access.dragit$getSelectedList() != null
 			&& access.dragit$getOrganizer() != null;
 	}
 
-	PackListWidget list(int index) {
-		PackScreenAccessor access = (PackScreenAccessor) (Object) screen;
+	TransferableSelectionList list(int index) {
+		PackSelectionScreenAccessor access = (PackSelectionScreenAccessor) (Object) screen;
 		return index == AVAILABLE ? access.dragit$getAvailableList() : access.dragit$getSelectedList();
 	}
 
-	private int listOf(PackListWidget widget) {
-		PackScreenAccessor access = (PackScreenAccessor) (Object) screen;
+	private int listOf(TransferableSelectionList widget) {
+		PackSelectionScreenAccessor access = (PackSelectionScreenAccessor) (Object) screen;
 		if (widget == access.dragit$getAvailableList()) {
 			return AVAILABLE;
 		}
 		return widget == access.dragit$getSelectedList() ? SELECTED : -1;
 	}
 
-	private ResourcePackOrganizerAccessor organizer() {
-		return (ResourcePackOrganizerAccessor) (Object) ((PackScreenAccessor) (Object) screen).dragit$getOrganizer();
+	private PackSelectionModelAccessor organizer() {
+		return (PackSelectionModelAccessor) (Object) ((PackSelectionScreenAccessor) (Object) screen).dragit$getOrganizer();
 	}
 
-	private List<ResourcePackProfile> profiles(int list) {
+	private List<Pack> profiles(int list) {
 		return list == AVAILABLE ? organizer().dragit$getDisabledPacks() : organizer().dragit$getEnabledPacks();
 	}
 
-	private ResourcePackProfile findProfile(String id) {
+	private Pack findProfile(String id) {
 		for (int i = 0; i < 2; i++) {
-			for (ResourcePackProfile profile : profiles(i)) {
+			for (Pack profile : profiles(i)) {
 				if (profile.getId().equals(id)) {
 					return profile;
 				}
@@ -311,7 +311,7 @@ public final class DragController {
 
 	private Grab findGrabbable(double x, double y) {
 		for (int i = 0; i < 2; i++) {
-			PackListWidget list = list(i);
+			TransferableSelectionList list = list(i);
 			if (!list.isMouseOver(x, y)) {
 				continue;
 			}
@@ -322,12 +322,12 @@ public final class DragController {
 			if (index < 0) {
 				return null;
 			}
-			PackListWidget.ResourcePackEntry entry = list.children().get(index);
-			ResourcePackOrganizer.Pack pack = ListGeometry.packOf(entry);
-			if (pack.isPinned()) {
+			TransferableSelectionList.PackEntry entry = list.children().get(index);
+			PackSelectionModel.Entry pack = ListGeometry.packOf(entry);
+			if (pack.isFixedPosition()) {
 				return null; // pinned packs are never lifted
 			}
-			return new Grab(i, index, entry.getName());
+			return new Grab(i, index, entry.getPackId());
 		}
 		return null;
 	}
@@ -335,7 +335,7 @@ public final class DragController {
 	// ---------------------------------------------------------------- multi-selection (Shift) and quick move (Ctrl)
 
 	/** Right edge (exclusive) of highlights and cards of this list; stops short of the scrollbar. */
-	public static int highlightRight(PackListWidget list) {
+	public static int highlightRight(TransferableSelectionList list) {
 		return ListGeometry.cardRight(list);
 	}
 
@@ -346,7 +346,7 @@ public final class DragController {
 	}
 
 	/** Same for vanilla's single selection (the white frame), which the mod draws itself so that it can fade. */
-	public float selectionAlpha(PackListWidget widget, String name) {
+	public float selectionAlpha(TransferableSelectionList widget, String name) {
 		Double alpha = selectionAlpha.get(listOf(widget) + name);
 		return alpha == null ? 0F : alpha.floatValue();
 	}
@@ -356,9 +356,9 @@ public final class DragController {
 		fade(multiAlpha, multi, blend);
 		Set<String> selected = new HashSet<>();
 		for (int i = 0; i < 2; i++) {
-			PackListWidget.ResourcePackEntry entry = list(i).getSelectedOrNull();
+			TransferableSelectionList.PackEntry entry = list(i).getSelected();
 			if (entry != null) {
-				selected.add(i + entry.getName());
+				selected.add(i + entry.getPackId());
 			}
 		}
 		fade(selectionAlpha, selected, blend);
@@ -394,8 +394,8 @@ public final class DragController {
 		return multiList == list && multi.contains(name);
 	}
 
-	private static boolean isFixed(PackListWidget.ResourcePackEntry entry) {
-		return ListGeometry.packOf(entry).isPinned();
+	private static boolean isFixed(TransferableSelectionList.PackEntry entry) {
+		return ListGeometry.packOf(entry).isFixedPosition();
 	}
 
 	/**
@@ -410,22 +410,22 @@ public final class DragController {
 	 */
 	private void modifierClick(Grab grab, boolean ctrl, boolean shift) {
 		int id = grab.list();
-		PackListWidget list = list(id);
+		TransferableSelectionList list = list(id);
 		String name = grab.name();
-		PackListWidget.ResourcePackEntry vanilla = list.getSelectedOrNull();
+		TransferableSelectionList.PackEntry vanilla = list.getSelected();
 		boolean seed = vanilla != null && !isFixed(vanilla);
 		if (multiList != id) {
 			multi.clear();
 			multiList = id;
 		}
 		if (multi.isEmpty() && seed) {
-			multi.add(vanilla.getName());
+			multi.add(vanilla.getPackId());
 		}
 
 		if (shift) {
 			String anchor = multiAnchor;
 			if (anchor == null || ListGeometry.indexOf(list, anchor) < 0) {
-				anchor = seed ? vanilla.getName() : name;
+				anchor = seed ? vanilla.getPackId() : name;
 			}
 			if (!ctrl) {
 				multi.clear();
@@ -433,9 +433,9 @@ public final class DragController {
 			int a = ListGeometry.indexOf(list, anchor);
 			int b = ListGeometry.indexOf(list, name);
 			for (int i = Math.min(a, b); i <= Math.max(a, b); i++) {
-				PackListWidget.ResourcePackEntry entry = list.children().get(i);
+				TransferableSelectionList.PackEntry entry = list.children().get(i);
 				if (!isFixed(entry)) {
-					multi.add(entry.getName());
+					multi.add(entry.getPackId());
 				}
 			}
 			multiAnchor = anchor;
@@ -448,7 +448,7 @@ public final class DragController {
 		if (multi.isEmpty()) {
 			multiList = -1;
 		}
-		screen.clearSelection(); // the multi-selection replaces vanilla's single highlight
+		screen.clearSelected(); // the multi-selection replaces vanilla's single highlight
 	}
 
 	/** Ctrl+A: selects every movable pack of the list under the cursor (else of the list that already holds the selection). */
@@ -467,15 +467,15 @@ public final class DragController {
 		}
 		multi.clear();
 		multiList = id;
-		for (PackListWidget.ResourcePackEntry entry : list(id).children()) {
+		for (TransferableSelectionList.PackEntry entry : list(id).children()) {
 			if (!isFixed(entry)) {
-				multi.add(entry.getName());
+				multi.add(entry.getPackId());
 			}
 		}
 		if (multi.isEmpty()) {
 			multiList = -1;
 		}
-		screen.clearSelection();
+		screen.clearSelected();
 		return true;
 	}
 
@@ -486,7 +486,7 @@ public final class DragController {
 	 * @return true if the key was used
 	 */
 	public boolean onKey(int keyCode, int modifiers) {
-		if (!ready() || phase != Phase.IDLE || screen.getFocused() instanceof TextFieldWidget) {
+		if (!ready() || phase != Phase.IDLE || screen.getFocused() instanceof EditBox) {
 			return false;
 		}
 		try {
@@ -506,14 +506,14 @@ public final class DragController {
 
 	/** True when a plain click at {@code x} would hit the enable/disable arrow of this pack (vanilla's own hit zones). */
 	private boolean onEnableDisableArrow(int listId, String name, double x) {
-		PackListWidget list = list(listId);
-		PackListWidget.ResourcePackEntry entry = ListGeometry.find(list, name);
+		TransferableSelectionList list = list(listId);
+		TransferableSelectionList.PackEntry entry = ListGeometry.find(list, name);
 		if (entry == null) {
 			return false;
 		}
 		double d = x - list.getRowLeft();
-		ResourcePackOrganizer.Pack pack = ListGeometry.packOf(entry);
-		return d <= 32.0 && (pack.canBeEnabled() || (d < 16.0 && pack.canBeDisabled()));
+		PackSelectionModel.Entry pack = ListGeometry.packOf(entry);
+		return d <= 32.0 && (pack.canSelect() || (d < 16.0 && pack.canUnselect()));
 	}
 
 	private void moveSelection() {
@@ -529,16 +529,16 @@ public final class DragController {
 	private void moveGroup(int from, List<String> names) {
 		int to = from == AVAILABLE ? SELECTED : AVAILABLE;
 
-		List<ResourcePackOrganizer.Pack> packs = new ArrayList<>();
-		List<ResourcePackProfile> moved = new ArrayList<>();
-		for (PackListWidget.ResourcePackEntry entry : list(from).children()) {
-			if (!names.contains(entry.getName())) {
+		List<PackSelectionModel.Entry> packs = new ArrayList<>();
+		List<Pack> moved = new ArrayList<>();
+		for (TransferableSelectionList.PackEntry entry : list(from).children()) {
+			if (!names.contains(entry.getPackId())) {
 				continue;
 			}
-			ResourcePackOrganizer.Pack pack = ListGeometry.packOf(entry);
-			ResourcePackProfile profile = findProfile(entry.getName());
-			boolean movable = profile != null && !pack.isPinned()
-				&& (to == SELECTED ? pack.getCompatibility().isCompatible() : pack.canBeDisabled());
+			PackSelectionModel.Entry pack = ListGeometry.packOf(entry);
+			Pack profile = findProfile(entry.getPackId());
+			boolean movable = profile != null && !pack.isFixedPosition()
+				&& (to == SELECTED ? pack.getCompatibility().isCompatible() : pack.canUnselect());
 			if (movable) {
 				packs.add(pack);
 				moved.add(profile);
@@ -547,24 +547,24 @@ public final class DragController {
 		if (packs.isEmpty()) {
 			return;
 		}
-		for (ResourcePackOrganizer.Pack pack : packs) {
+		for (PackSelectionModel.Entry pack : packs) {
 			if (to == SELECTED) {
-				pack.enable();
+				pack.select();
 			} else {
-				pack.disable();
+				pack.unselect();
 			}
 		}
 		if (to == SELECTED) {
 			keepRelativeOrder(profiles(SELECTED), moved);
 		}
 		organizer().dragit$refreshEnabledProfiles();
-		list(AVAILABLE).refreshScroll();
-		list(SELECTED).refreshScroll();
+		list(AVAILABLE).clampScrollAmount();
+		list(SELECTED).clampScrollAmount();
 		multiList = to;
 	}
 
 	/** Vanilla inserts every enabled pack by its own default position; put the moved ones back in the order they had on screen. */
-	private void keepRelativeOrder(List<ResourcePackProfile> target, List<ResourcePackProfile> inOrder) {
+	private void keepRelativeOrder(List<Pack> target, List<Pack> inOrder) {
 		List<Integer> slots = new ArrayList<>();
 		for (int i = 0; i < target.size(); i++) {
 			if (inOrder.contains(target.get(i))) {
@@ -633,7 +633,7 @@ public final class DragController {
 	}
 
 	/** End of {@code Screen.render}: draw the placeholder and the lifted entry on top of everything. */
-	public void endFrame(DrawContext context, float delta) {
+	public void endFrame(GuiGraphics context, float delta) {
 		if (!ready()) {
 			return;
 		}
@@ -645,18 +645,18 @@ public final class DragController {
 	}
 
 	private void readPointer() {
-		MinecraftClient client = MinecraftClient.getInstance();
+		Minecraft client = Minecraft.getInstance();
 		Window window = client.getWindow();
-		pointerX = client.mouse.getX() * window.getScaledWidth() / window.getWidth();
-		pointerY = client.mouse.getY() * window.getScaledHeight() / window.getHeight();
+		pointerX = client.mouseHandler.xpos() * window.getGuiScaledWidth() / window.getScreenWidth();
+		pointerY = client.mouseHandler.ypos() * window.getGuiScaledHeight() / window.getScreenHeight();
 	}
 
 	private static boolean leftButtonHeld() {
-		return GLFW.glfwGetMouseButton(MinecraftClient.getInstance().getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+		return GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 	}
 
 	private double thresholdGui() {
-		return DragItSettings.DRAG_THRESHOLD_PX / Math.max(1.0, MinecraftClient.getInstance().getWindow().getScaleFactor());
+		return DragItSettings.DRAG_THRESHOLD_PX / Math.max(1.0, Minecraft.getInstance().getWindow().getGuiScale());
 	}
 
 	private void tickPending() {
@@ -666,7 +666,7 @@ public final class DragController {
 	}
 
 	private void startDrag() {
-		PackListWidget source = list(srcList);
+		TransferableSelectionList source = list(srcList);
 		int index = ListGeometry.indexOf(source, packId);
 		if (index < 0) {
 			reset();
@@ -676,9 +676,9 @@ public final class DragController {
 		boolean group = isMultiMember(srcList, packId);
 		dragIds.clear();
 		dragProfiles.clear();
-		for (PackListWidget.ResourcePackEntry entry : source.children()) {
-			String name = entry.getName();
-			ResourcePackProfile profile = name.equals(packId) || (group && multi.contains(name)) ? findProfile(name) : null;
+		for (TransferableSelectionList.PackEntry entry : source.children()) {
+			String name = entry.getPackId();
+			Pack profile = name.equals(packId) || (group && multi.contains(name)) ? findProfile(name) : null;
 			if (profile != null) {
 				dragIds.add(name);
 				dragProfiles.add(profile);
@@ -696,12 +696,12 @@ public final class DragController {
 		ghostY = ghostTY = entryY;
 		lift = 0;
 		phase = Phase.DRAGGING;
-		screen.clearSelection();
+		screen.clearSelected();
 		tickDragging();
 	}
 
 	private void tickDragging() {
-		ResourcePackProfile profile = findProfile(packId);
+		Pack profile = findProfile(packId);
 		boolean intact = profile != null;
 		for (String id : dragIds) {
 			intact &= ListGeometry.indexOf(list(srcList), id) >= 0;
@@ -720,10 +720,10 @@ public final class DragController {
 		autoScroll();
 	}
 
-	private DropTarget.Result computeDrop(ResourcePackProfile profile, double x, double y) {
+	private DropTarget.Result computeDrop(Pack profile, double x, double y) {
 		@SuppressWarnings("unchecked")
-		List<ResourcePackProfile>[] lists = new List[]{profiles(AVAILABLE), profiles(SELECTED)};
-		PackListWidget[] widgets = {list(AVAILABLE), list(SELECTED)};
+		List<Pack>[] lists = new List[]{profiles(AVAILABLE), profiles(SELECTED)};
+		TransferableSelectionList[] widgets = {list(AVAILABLE), list(SELECTED)};
 		double cardCenterY = y - grabDY + ListGeometry.entryHeight(list(srcList)) / 2.0;
 		boolean[] allowed = {!moversTo(AVAILABLE).isEmpty(), !moversTo(SELECTED).isEmpty()};
 		return DropTarget.compute(widgets, lists, profile, dragProfiles, srcList, x, y, cardCenterY, allowed);
@@ -734,12 +734,12 @@ public final class DragController {
 	 * group skips what cannot go there (incompatible packs into "selected", required ones into "available"). A lone
 	 * incompatible pack stays droppable because it gets vanilla's confirmation dialog.
 	 */
-	private List<ResourcePackProfile> moversTo(int target) {
+	private List<Pack> moversTo(int target) {
 		if (target == srcList || dragProfiles.size() == 1 && target == SELECTED) {
 			return dragProfiles;
 		}
-		List<ResourcePackProfile> movers = new ArrayList<>();
-		for (ResourcePackProfile profile : dragProfiles) {
+		List<Pack> movers = new ArrayList<>();
+		for (Pack profile : dragProfiles) {
 			if (target == SELECTED ? profile.getCompatibility().isCompatible() : !profile.isRequired()) {
 				movers.add(profile);
 			}
@@ -751,7 +751,7 @@ public final class DragController {
 		int edge = DragItSettings.AUTOSCROLL_EDGE;
 		int slack = DragItSettings.AUTOSCROLL_SLACK;
 		for (int i = 0; i < 2; i++) {
-			PackListWidget list = list(i);
+			TransferableSelectionList list = list(i);
 			int pad = DragItSettings.COLUMN_PADDING;
 			if (pointerX < list.getX() - pad || pointerX > list.getRight() + pad) {
 				continue;
@@ -769,7 +769,7 @@ public final class DragController {
 	}
 
 	private void tickSettling() {
-		PackListWidget list = list(settleList);
+		TransferableSelectionList list = list(settleList);
 		int index = ListGeometry.indexOf(list, packId);
 		if (index < 0) {
 			finishSettle();
@@ -788,7 +788,7 @@ public final class DragController {
 
 	private void finishSettle() {
 		if (packId != null && settleList >= 0 && ready()) {
-			PackListWidget list = list(settleList);
+			TransferableSelectionList list = list(settleList);
 			int index = ListGeometry.indexOf(list, packId);
 			if (index >= 0) {
 				animator.snap(settleList, packId, index, ListGeometry.itemHeight(list));
@@ -803,8 +803,8 @@ public final class DragController {
 	private void updateModel() {
 		double indicatorBlend = 1.0 - Math.exp(-dt * DragItSettings.INDICATOR_RATE);
 		for (int i = 0; i < 2; i++) {
-			PackListWidget list = list(i);
-			List<PackListWidget.ResourcePackEntry> children = list.children();
+			TransferableSelectionList list = list(i);
+			List<TransferableSelectionList.PackEntry> children = list.children();
 			int n = children.size();
 			int itemHeight = ListGeometry.itemHeight(list);
 			boolean dragging = phase == Phase.DRAGGING;
@@ -857,7 +857,7 @@ public final class DragController {
 	}
 
 	private void drop(double x, double y) {
-		ResourcePackProfile profile = findProfile(packId);
+		Pack profile = findProfile(packId);
 		if (profile == null) {
 			reset();
 			return;
@@ -870,19 +870,19 @@ public final class DragController {
 		settleList = outcome == Outcome.APPLIED ? result.list() : srcList;
 		phase = Phase.SETTLING;
 		if (outcome == Outcome.APPLIED) {
-			list(AVAILABLE).refreshScroll();
-			list(SELECTED).refreshScroll();
+			list(AVAILABLE).clampScrollAmount();
+			list(SELECTED).clampScrollAmount();
 		}
 	}
 
-	private Outcome apply(ResourcePackProfile profile, DropTarget.Result result) {
+	private Outcome apply(Pack profile, DropTarget.Result result) {
 		if (!result.valid()) {
 			return Outcome.REJECTED;
 		}
 		if (result.list() == srcList) {
 			// Re-order inside one list: edit the organizer's list directly, one rebuild; the group keeps its inner order.
-			List<ResourcePackProfile> profiles = profiles(srcList);
-			List<ResourcePackProfile> before = new ArrayList<>(profiles);
+			List<Pack> profiles = profiles(srcList);
+			List<Pack> before = new ArrayList<>(profiles);
 			if (!profiles.containsAll(dragProfiles)) {
 				return Outcome.REJECTED;
 			}
@@ -895,15 +895,15 @@ public final class DragController {
 			return Outcome.APPLIED;
 		}
 
-		List<ResourcePackProfile> movers = moversTo(result.list());
-		List<ResourcePackOrganizer.Pack> packs = new ArrayList<>();
-		for (ResourcePackProfile mover : movers) {
-			PackListWidget.ResourcePackEntry entry = ListGeometry.find(list(srcList), mover.getId());
+		List<Pack> movers = moversTo(result.list());
+		List<PackSelectionModel.Entry> packs = new ArrayList<>();
+		for (Pack mover : movers) {
+			TransferableSelectionList.PackEntry entry = ListGeometry.find(list(srcList), mover.getId());
 			if (entry == null) {
 				return Outcome.REJECTED;
 			}
-			ResourcePackOrganizer.Pack pack = ListGeometry.packOf(entry);
-			if (result.list() == AVAILABLE && !pack.canBeDisabled()) {
+			PackSelectionModel.Entry pack = ListGeometry.packOf(entry);
+			if (result.list() == AVAILABLE && !pack.canUnselect()) {
 				continue;
 			}
 			packs.add(pack);
@@ -923,16 +923,16 @@ public final class DragController {
 	 * Moves packs to the other list through vanilla's own enable()/disable() (which also handles the high-contrast
 	 * option and refreshes the manager), then slides them as one block to the exact gap.
 	 */
-	private void crossList(List<ResourcePackOrganizer.Pack> packs, List<ResourcePackProfile> moved, int targetList, int gap) {
-		for (ResourcePackOrganizer.Pack pack : packs) {
+	private void crossList(List<PackSelectionModel.Entry> packs, List<Pack> moved, int targetList, int gap) {
+		for (PackSelectionModel.Entry pack : packs) {
 			if (targetList == SELECTED) {
-				pack.enable();
+				pack.select();
 			} else {
-				pack.disable();
+				pack.unselect();
 			}
 		}
-		List<ResourcePackProfile> profiles = profiles(targetList);
-		List<ResourcePackProfile> before = new ArrayList<>(profiles);
+		List<Pack> profiles = profiles(targetList);
+		List<Pack> before = new ArrayList<>(profiles);
 		profiles.removeAll(moved);
 		profiles.addAll(Math.min(gap, profiles.size()), moved);
 		if (!profiles.equals(before)) {
@@ -942,16 +942,16 @@ public final class DragController {
 	}
 
 	/** Same standard confirmation dialog vanilla shows when enabling an incompatible pack. */
-	private void confirmIncompatible(ResourcePackOrganizer.Pack pack, ResourcePackProfile profile, int gap) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		Text message = pack.getCompatibility().getConfirmMessage();
+	private void confirmIncompatible(PackSelectionModel.Entry pack, Pack profile, int gap) {
+		Minecraft client = Minecraft.getInstance();
+		Component message = pack.getCompatibility().getConfirmation();
 		client.setScreen(new ConfirmScreen(confirmed -> {
 			client.setScreen(screen);
 			if (confirmed) {
 				crossList(List.of(pack), List.of(profile), SELECTED, gap);
-				list(AVAILABLE).refreshScroll();
-				list(SELECTED).refreshScroll();
+				list(AVAILABLE).clampScrollAmount();
+				list(SELECTED).clampScrollAmount();
 			}
-		}, Text.translatable("pack.incompatible.confirm.title"), message));
+		}, Component.translatable("pack.incompatible.confirm.title"), message));
 	}
 }
