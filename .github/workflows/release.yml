@@ -1,0 +1,184 @@
+name: Release
+run-name: Release ${{ github.ref_name }}
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish all supported targets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      # Gradle itself needs JDK 25 (Fabric Loom 1.18); the last version listed becomes JAVA_HOME.
+      # JDK 21 is the toolchain the mod compiles with.
+      - name: Set up JDK 21 and 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate release metadata
+        id: release
+        shell: bash
+        run: |
+          version="$(grep '^mod_version=' gradle.properties | cut -d= -f2)"
+          expected_tag="v${version}"
+          if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match mod_version=$version"
+            exit 1
+          fi
+
+          if ! grep -q "^## \\[$version\\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for $version"
+            exit 1
+          fi
+
+          case "$version" in
+            *-alpha*) release_type=alpha ;;
+            *-beta*) release_type=beta ;;
+            *-*)
+              echo "::error::Pre-release versions must contain -alpha or -beta"
+              exit 1
+              ;;
+            *) release_type=release ;;
+          esac
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
+
+      # `build` also runs verifyJar: the release JAR must register its Mixin config and contain every class it names.
+      - name: Build all supported Stonecutter targets
+        run: ./gradlew clean build --no-daemon
+
+      # Modrinth and CurseForge are optional: build.fabric.gradle.kts publishes to a platform only when both its
+      # project id and token are set. The GitHub release below is always created.
+      - name: Check publishing configuration
+        env:
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        shell: bash
+        run: |
+          if [ -n "$MODRINTH_PROJECT_ID" ] && [ -n "$MODRINTH_TOKEN" ]; then
+            echo "Modrinth: will publish"
+          else
+            echo "::warning::Modrinth is not configured (set the MODRINTH_PROJECT_ID variable and MODRINTH_TOKEN secret); skipping it"
+          fi
+          if [ -n "$CURSEFORGE_PROJECT_ID" ] && [ -n "$CURSEFORGE_TOKEN" ]; then
+            echo "CurseForge: will publish"
+          else
+            echo "::warning::CurseForge is not configured (set the CURSEFORGE_PROJECT_ID variable and CURSEFORGE_TOKEN secret); skipping it"
+          fi
+
+      - name: Verify release has not been published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::error::GitHub release $GITHUB_REF_NAME already exists. Publish a new version and tag instead."
+            exit 1
+          fi
+
+          mapfile -t target_dirs < <(find versions -mindepth 1 -maxdepth 1 -type d | sort)
+          mapfile -t artifacts < <(find versions -path '*/build/libs/*.jar' -type f ! -name '*-sources.jar' ! -name '*-dev.jar' | sort)
+          test "${#target_dirs[@]}" -gt 0 || { echo "::error::No Stonecutter targets were found"; exit 1; }
+          test "${#artifacts[@]}" -eq "${#target_dirs[@]}" || {
+            echo "::error::Expected one release JAR per Stonecutter target, found ${#artifacts[@]} JARs for ${#target_dirs[@]} targets"
+            exit 1
+          }
+
+      - name: Read changelog
+        id: changelog
+        shell: bash
+        run: |
+          version="${{ steps.release.outputs.version }}"
+          content="$(sed -n "/^## \\[$version\\]/,/^## \\[/{/^## \\[/!p}" CHANGELOG.md)"
+          {
+            echo "content<<CHANGELOG_EOF"
+            printf '%s\n' "$content"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Modrinth and CurseForge
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          ORG_GRADLE_PROJECT_modrinth_project_id: ${{ vars.MODRINTH_PROJECT_ID }}
+          ORG_GRADLE_PROJECT_curseforge_project_id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          ORG_GRADLE_PROJECT_release_type: ${{ steps.release.outputs.release_type }}
+          RELEASE_CHANGELOG: ${{ steps.changelog.outputs.content }}
+        run: ./gradlew publishMods --no-daemon
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGELOG: ${{ steps.changelog.outputs.content }}
+        shell: bash
+        run: |
+          mapfile -t artifacts < <(find versions -path '*/build/libs/*.jar' -type f ! -name '*-sources.jar' ! -name '*-dev.jar' | sort)
+          options=(
+            --title "Drag It! ${{ steps.release.outputs.version }}"
+            --notes "$CHANGELOG"
+          )
+          if [ "${{ steps.release.outputs.release_type }}" != "release" ]; then
+            options+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" "${artifacts[@]}" "${options[@]}"
+
+      # Best effort: the release is already published at this point, so a Discord failure must not fail the run.
+      - name: Notify Discord
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_ROLE_ID: ${{ vars.DISCORD_ROLE_ID }}
+          CHANGELOG: ${{ steps.changelog.outputs.content }}
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set, skipping"
+            exit 0
+          fi
+          # Message content is capped at 2000 characters: cut at a line boundary.
+          # Blank lines are dropped (headings already carry their own spacing in Discord). When DISCORD_ROLE_ID is set,
+          # that role is pinged after the text; allowed_mentions lets only that role ping, so @everyone in the
+          # changelog text cannot.
+          payload="$(python3 - <<'PY'
+          import json, os
+          role = os.environ.get("DISCORD_ROLE_ID", "").strip()
+          head = f"# Drag It! {os.environ['VERSION']}\n"
+          tail = f"\n\n<@&{role}>" if role else ""
+          body = "\n".join(l.rstrip() for l in os.environ["CHANGELOG"].splitlines() if l.strip())
+          limit = 1990 - len(head) - len(tail)
+          if len(body) > limit:
+              body = body[:limit].rsplit("\n", 1)[0] + "\n…"
+          print(json.dumps({"content": head + body + tail, "allowed_mentions": {"parse": [], "roles": [role] if role else []}}))
+          PY
+          )"
+          curl -fsS -H 'Content-Type: application/json' -d "$payload" "$DISCORD_WEBHOOK_URL"
