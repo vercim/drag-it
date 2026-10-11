@@ -1,6 +1,5 @@
 package com.dragit.mixin;
 
-import com.dragit.dev.SelfTest;
 import com.dragit.drag.DragController;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -22,11 +21,6 @@ public abstract class ScreenMixin {
 	private void dragit$beforeRender(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		if ((Object) this instanceof PackScreen screen) {
 			DragController.of(screen).beginFrame();
-			if (SelfTest.ENABLED) {
-				SelfTest.onPackScreenFrame(screen);
-			}
-		} else if (SelfTest.ENABLED) {
-			SelfTest.onOtherScreenFrame((Screen) (Object) this);
 		}
 	}
 
@@ -34,9 +28,6 @@ public abstract class ScreenMixin {
 	private void dragit$afterRender(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		if ((Object) this instanceof PackScreen screen) {
 			DragController.of(screen).endFrame(context, delta);
-			if (SelfTest.ENABLED) {
-				SelfTest.afterPackScreenFrame(screen);
-			}
 		}
 	}
 

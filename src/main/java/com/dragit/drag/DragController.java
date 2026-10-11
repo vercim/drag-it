@@ -43,25 +43,7 @@ public final class DragController {
 		IDLE, PENDING, DRAGGING, SETTLING
 	}
 
-	/** Cursor position in GUI coordinates; replaceable so the dev self-test can drive the screen without a real mouse. */
-	public interface Pointer {
-		double x();
-
-		double y();
-	}
-
-	/** Number of unexpected exceptions swallowed (and logged) by the controller; the dev self-test asserts this stays 0. */
-	public static volatile int faultCount;
-
-	private static volatile Pointer pointerOverride;
-	private static boolean pollRealButton = true;
 	private static boolean drawingGhost;
-
-	/** Dev/test hook: use a synthetic cursor and do not consult the real mouse button. */
-	public static void setSyntheticPointer(Pointer pointer) {
-		pointerOverride = pointer;
-		pollRealButton = pointer == null;
-	}
 
 	/** True while the lifted entry is being drawn through the entry's own {@code render()} (so the render hook leaves it alone). */
 	public static boolean isDrawingGhost() {
@@ -131,23 +113,6 @@ public final class DragController {
 		return phase;
 	}
 
-	// Read-only debug view used by the dev self-test.
-	public boolean debugDropBlocked() {
-		return drop.blocked();
-	}
-
-	public boolean debugDropValid() {
-		return drop.valid();
-	}
-
-	public int debugDropGap() {
-		return drop.gap();
-	}
-
-	public int debugDropList() {
-		return drop.list();
-	}
-
 	/** The dragged entry is drawn as the lifted card instead of in its row. */
 	public boolean isHidden(String name) {
 		if (phase == Phase.DRAGGING) {
@@ -215,10 +180,6 @@ public final class DragController {
 	 *
 	 * @return true if the event was consumed and must not reach vanilla
 	 */
-	public boolean onMouseButton(double x, double y, int button, boolean pressed) {
-		return onMouseButton(x, y, button, pressed, 0);
-	}
-
 	/** @param mods GLFW modifier bits of the event (Shift selects several packs, Ctrl sends them to the other list) */
 	public boolean onMouseButton(double x, double y, int button, boolean pressed, int mods) {
 		if (!ready()) {
@@ -333,13 +294,14 @@ public final class DragController {
 		boolean gesture = phase == Phase.PENDING || phase == Phase.DRAGGING;
 		phase = Phase.IDLE;
 		packId = null;
+		dragIds.clear();
+		dragProfiles.clear();
 		drop = DropTarget.Result.NONE;
 		lift = 0;
 		swallowRelease = gesture && buttonDown;
 	}
 
 	private void fail(RuntimeException e) {
-		faultCount++;
 		if (!faulted) {
 			faulted = true;
 			DragIt.LOGGER.error("Drag & drop failed, cancelling the gesture", e);
@@ -654,7 +616,7 @@ public final class DragController {
 			readPointer();
 			pruneMulti();
 			updateHighlightAlpha();
-			if ((phase == Phase.PENDING || phase == Phase.DRAGGING) && pollRealButton && !leftButtonHeld()) {
+			if ((phase == Phase.PENDING || phase == Phase.DRAGGING) && !leftButtonHeld()) {
 				onRelease(pointerX, pointerY, GLFW.GLFW_MOUSE_BUTTON_LEFT); // release event got lost (focus change etc.)
 			}
 			switch (phase) {
@@ -683,12 +645,6 @@ public final class DragController {
 	}
 
 	private void readPointer() {
-		Pointer override = pointerOverride;
-		if (override != null) {
-			pointerX = override.x();
-			pointerY = override.y();
-			return;
-		}
 		MinecraftClient client = MinecraftClient.getInstance();
 		Window window = client.getWindow();
 		pointerX = client.mouse.getX() * window.getScaledWidth() / window.getWidth();
@@ -700,9 +656,6 @@ public final class DragController {
 	}
 
 	private double thresholdGui() {
-		if (pointerOverride != null) {
-			return DragItSettings.DRAG_THRESHOLD_PX;
-		}
 		return DragItSettings.DRAG_THRESHOLD_PX / Math.max(1.0, MinecraftClient.getInstance().getWindow().getScaleFactor());
 	}
 
@@ -927,53 +880,62 @@ public final class DragController {
 			return Outcome.REJECTED;
 		}
 		if (result.list() == srcList) {
-			// Re-order inside one list: edit the organizer's list directly, one rebuild.
+			// Re-order inside one list: edit the organizer's list directly, one rebuild; the group keeps its inner order.
 			List<ResourcePackProfile> profiles = profiles(srcList);
-			int from = profiles.indexOf(profile);
-			if (from < 0) {
+			List<ResourcePackProfile> before = new ArrayList<>(profiles);
+			if (!profiles.containsAll(dragProfiles)) {
 				return Outcome.REJECTED;
 			}
-			if (result.gap() == from) {
+			profiles.removeAll(dragProfiles);
+			profiles.addAll(Math.min(result.gap(), profiles.size()), dragProfiles);
+			if (profiles.equals(before)) {
 				return Outcome.UNCHANGED;
 			}
-			profiles.remove(from);
-			profiles.add(Math.min(result.gap(), profiles.size()), profile);
 			organizer().dragit$getUpdateCallback().run();
 			return Outcome.APPLIED;
 		}
 
-		PackListWidget.ResourcePackEntry entry = ListGeometry.find(list(srcList), packId);
-		if (entry == null) {
-			return Outcome.REJECTED;
-		}
-		ResourcePackOrganizer.Pack pack = ListGeometry.packOf(entry);
-		if (result.list() == SELECTED) {
-			if (!pack.getCompatibility().isCompatible()) {
-				confirmIncompatible(pack, profile, result.gap());
-				return Outcome.DEFERRED;
+		List<ResourcePackProfile> movers = moversTo(result.list());
+		List<ResourcePackOrganizer.Pack> packs = new ArrayList<>();
+		for (ResourcePackProfile mover : movers) {
+			PackListWidget.ResourcePackEntry entry = ListGeometry.find(list(srcList), mover.getId());
+			if (entry == null) {
+				return Outcome.REJECTED;
 			}
-		} else if (!pack.canBeDisabled()) {
+			ResourcePackOrganizer.Pack pack = ListGeometry.packOf(entry);
+			if (result.list() == AVAILABLE && !pack.canBeDisabled()) {
+				continue;
+			}
+			packs.add(pack);
+		}
+		if (packs.isEmpty()) {
 			return Outcome.REJECTED;
 		}
-		crossList(pack, profile, result.list(), result.gap());
+		if (result.list() == SELECTED && packs.size() == 1 && !packs.get(0).getCompatibility().isCompatible()) {
+			confirmIncompatible(packs.get(0), movers.get(0), result.gap());
+			return Outcome.DEFERRED;
+		}
+		crossList(packs, movers, result.list(), result.gap());
 		return Outcome.APPLIED;
 	}
 
 	/**
-	 * Moves a pack to the other list through vanilla's own enable()/disable() (which also handles the high-contrast
-	 * option and refreshes the manager), then slides it to the exact gap.
+	 * Moves packs to the other list through vanilla's own enable()/disable() (which also handles the high-contrast
+	 * option and refreshes the manager), then slides them as one block to the exact gap.
 	 */
-	private void crossList(ResourcePackOrganizer.Pack pack, ResourcePackProfile profile, int targetList, int gap) {
-		if (targetList == SELECTED) {
-			pack.enable();
-		} else {
-			pack.disable();
+	private void crossList(List<ResourcePackOrganizer.Pack> packs, List<ResourcePackProfile> moved, int targetList, int gap) {
+		for (ResourcePackOrganizer.Pack pack : packs) {
+			if (targetList == SELECTED) {
+				pack.enable();
+			} else {
+				pack.disable();
+			}
 		}
 		List<ResourcePackProfile> profiles = profiles(targetList);
-		int index = profiles.indexOf(profile);
-		if (index >= 0 && index != gap) {
-			profiles.remove(index);
-			profiles.add(Math.min(gap, profiles.size()), profile);
+		List<ResourcePackProfile> before = new ArrayList<>(profiles);
+		profiles.removeAll(moved);
+		profiles.addAll(Math.min(gap, profiles.size()), moved);
+		if (!profiles.equals(before)) {
 			organizer().dragit$getUpdateCallback().run();
 		}
 		organizer().dragit$refreshEnabledProfiles();
@@ -986,7 +948,7 @@ public final class DragController {
 		client.setScreen(new ConfirmScreen(confirmed -> {
 			client.setScreen(screen);
 			if (confirmed) {
-				crossList(pack, profile, SELECTED, gap);
+				crossList(List.of(pack), List.of(profile), SELECTED, gap);
 				list(AVAILABLE).refreshScroll();
 				list(SELECTED).refreshScroll();
 			}

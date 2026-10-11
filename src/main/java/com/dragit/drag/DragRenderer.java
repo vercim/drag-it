@@ -2,6 +2,7 @@ package com.dragit.drag;
 
 import com.dragit.DragItSettings;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.pack.PackListWidget;
 import net.minecraft.client.util.math.MatrixStack;
@@ -93,6 +94,13 @@ final class DragRenderer {
 
 		int left = ix - 2;
 		int right = left + width;
+		int count = c.phase == DragController.Phase.DRAGGING ? c.dragIds.size() : 1;
+		for (int layer = Math.min(count - 1, 2); layer >= 1; layer--) {
+			// A dragged selection is shown as a small stack of cards under the one the cursor holds.
+			int o = Math.round(layer * 4 * lift);
+			context.fill(left + o, iy - 2 + o, right + o, iy + height + 2 + o, DragItSettings.GHOST_BACKGROUND);
+			context.drawBorder(left + o, iy - 2 + o, width, height + 4, scale(DragItSettings.INDICATOR_COLOR, 0.35 + 0.35 * lift));
+		}
 		for (int i = 5; i >= 1; i--) {
 			int alpha = (int) (lift * 22);
 			context.fill(left - i + 2, iy - 2 - i + 4, right + i + 2, iy + height + 2 + i + 4, alpha << 24);
@@ -108,6 +116,16 @@ final class DragRenderer {
 			entry.render(context, row, iy, ix, list.getRowWidth(), height, -1000, -1000, false, delta);
 		} finally {
 			DragController.setDrawingGhost(false);
+		}
+		if (count > 1) {
+			// Number of dragged packs, in the top-right corner of the card.
+			TextRenderer font = MinecraftClient.getInstance().textRenderer;
+			String label = String.valueOf(count);
+			int badgeWidth = font.getWidth(label) + 8;
+			int bx = right - badgeWidth - 3;
+			int by = iy - 2 + 3;
+			context.fill(bx, by, bx + badgeWidth, by + 12, scale(DragItSettings.INDICATOR_COLOR, lift));
+			context.drawText(font, label, bx + 4, by + 2, 0xFFFFFFFF, false);
 		}
 		matrices.pop();
 	}
