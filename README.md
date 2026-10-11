@@ -1,5 +1,3 @@
-![https://cdn.modrinth.com/data/vENm7q9U/images/2825a8c2f6d438edb4af5626597ceb9c45c93c74.gif](https://cdn.modrinth.com/data/vENm7q9U/images/2825a8c2f6d438edb4af5626597ceb9c45c93c74.gif)
-
 ![What does it do](https://cdn.modrinth.com/data/cached_images/31094aa33a38945cfdb386bd0028260ed83275fc_0.webp)
 
 Mod adds smooth drag and drop to the resource pack and data pack selection screens. You can drag packs with the mouse to reorder them or move them between the available and enabled lists.
