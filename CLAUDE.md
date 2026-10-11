@@ -2,7 +2,7 @@
 
 Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack and data pack selection screens. Fabric + NeoForge, Java 21, official Mojang mappings, one shared source tree built with Stonecutter. Build, CI, and release setup mirror [Handycam](https://github.com/vercim/handycam); keep the two in step.
 
-`AGENTS.md` only points here, so there is a single copy of these rules.
+`AGENTS.md` is a symlink to this file.
 
 ## Docs map
 
