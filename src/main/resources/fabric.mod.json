@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "drag-it",
+  "version": "${version}",
+  "name": "Drag It!",
+  "description": "Smooth drag & drop for the resource pack selection screen.",
+  "authors": ["Drag It!"],
+  "license": "MIT",
+  "environment": "client",
+  "mixins": ["drag-it.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21"
+  }
+}
