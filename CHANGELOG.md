@@ -18,12 +18,14 @@
 - English and Russian translations.
 
 ### Compatibility
-- Minecraft 1.21.1, Fabric Loader 0.16.4 or newer, Java 21. Client side only.
+- Minecraft 1.21.1 on Fabric (Fabric Loader 0.16.4 or newer) and NeoForge (21.1.259 or newer), Java 21. Client side only.
 - Fabric API is not required.
 
 ### Architecture
-- One [Stonecutter](https://stonecutter.kikugie.dev/) source tree with tag-driven publishing to GitHub, Modrinth, and CurseForge, mirroring the Handycam build and release setup.
-- Moved the code to the `dev.vercim.dragit` package and declared LGPL-3.0 in the mod metadata, matching the bundled license file.
+- One [Stonecutter](https://stonecutter.kikugie.dev/) source tree builds the Fabric and NeoForge targets, with tag-driven publishing to GitHub, Modrinth, and CurseForge, mirroring the Handycam build and release setup.
+- Official Mojang mappings on both loaders. The mod id is `dragit` (NeoForge does not allow hyphens in ids) and the code lives in the `dev.vercim.dragit` package.
+- The build fails if a JAR does not register its Mixin config, misses a mixin class, or contains the other loader's files.
+- Added the pixel icon and declared LGPL-3.0 in the mod metadata, matching the bundled license file.
 
 ### Documentation
 - Added README, development and release guide, and version notes.

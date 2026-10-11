@@ -2,7 +2,7 @@
 
 Per-Minecraft-version notes: exact dependency versions, API differences, and quirks. Read this before porting to a new version or changing a version-specific condition. Build and release steps are in [WORKFLOW.md](WORKFLOW.md); player-facing changes go in [../CHANGELOG.md](../CHANGELOG.md).
 
-Unlike Handycam, which uses official Mojang mappings, this project uses **Yarn** mappings. Class and method names in snippets copied between the two repositories differ. Yarn has no mappings for the unobfuscated Minecraft releases (26.1 and later), so a port to those versions means moving to Mojang mappings first.
+All names in this file and in the source are **official Mojang mappings**, the same as in Handycam, so snippets move between the two repositories unchanged. Yarn is not used (an earlier prototype was written against Yarn and migrated).
 
 ## How to use and fill this file
 
@@ -16,7 +16,7 @@ Unlike Handycam, which uses official Mojang mappings, this project uses **Yarn**
 **What to put in an entry**
 
 - *Dependencies:* the exact values from `gradle.properties` (copy, do not paraphrase) plus the Java version.
-- *API differences:* only what differs from the baseline ([MC 1.21.1](#mc-1211--fabric) below). Give the Minecraft signature, the file that adapts to it, and the Stonecutter condition used (syntax: Stonecutter docs; keep conditions narrow).
+- *API differences:* only what differs from the baseline ([MC 1.21.1](#mc-1211--fabric--neoforge) below). Give the Minecraft signature, the file that adapts to it, and the Stonecutter condition used (syntax: Stonecutter docs; keep conditions narrow).
 - *Quirks:* anything that cost you time — crashes, mixin targets that moved, loader behavior.
 - *Verified:* date, mod version, and which checklist items you ran on the packaged JAR.
 
@@ -35,92 +35,119 @@ Unlike Handycam, which uses official Mojang mappings, this project uses **Yarn**
 ### Template
 
 ```md
-## MC X.Y.Z — Fabric
+## MC X.Y.Z — Fabric / NeoForge
 
-Targets: `X.Y.Z-fabric` · first mod version: A.B.C · date: YYYY-MM-DD
+Targets: `X.Y.Z-fabric`, `X.Y.Z-neoforge` · first mod version: A.B.C · date: YYYY-MM-DD
 
 ### Dependencies
 - java_version = 21
 - fabric_loader_version = …
 - fabric_loader_min_version = …
-- yarn_mappings = …
+- neoforge_version = …
+- neoforge_loader_version_range = …
 
 ### API differences (vs. baseline)
 | Area | Baseline (1.21.1) | X.Y.Z | Where / condition |
 |---|---|---|---|
-| `PackScreen` fields and `initTabNavigation()` | see baseline | … | `mixin/PackScreenMixin.java`, `//? if …` |
+| `PackSelectionScreen` fields and `repositionElements()` | see baseline | … | `mixin/PackSelectionScreenMixin.java`, `//? if …` |
 | `Screen.render()` / `keyPressed()` | see baseline | … | `mixin/ScreenMixin.java` |
-| `Mouse.onMouseButton()` | see baseline | … | `mixin/MouseMixin.java` |
-| `PackListWidget` / `ResourcePackEntry.render()` | see baseline | … | `mixin/ResourcePackEntryMixin.java` |
-| `ResourcePackOrganizer` fields | see baseline | … | `mixin/accessor/` |
+| `MouseHandler.onPress()` | see baseline | … | `mixin/MouseHandlerMixin.java` |
+| `PackEntry.render()` | see baseline | … | `mixin/PackEntryMixin.java` |
+| `PackSelectionModel` fields | see baseline | … | `mixin/accessor/` |
 
 ### Quirks
 - …
 
 ### Verified
-- YYYY-MM-DD, mod A.B.C: Fabric ☐ (checklist in WORKFLOW.md → Packaged-JAR validation)
+- YYYY-MM-DD, mod A.B.C: Fabric ☐ NeoForge ☐ (checklist in WORKFLOW.md → Packaged-JAR validation)
 ```
 
 ## Porting checklist
 
 For each new version, after adding the target:
 
-- [ ] Add the target to `settings.gradle.kts`; configure its dependencies (build script, `gradle.properties`, or a Stonecutter property table once the matrix grows).
-- [ ] `PackScreen`: the `availablePackList`, `selectedPackList`, and `organizer` fields, `initTabNavigation()`, and `close()`.
-- [ ] `ResourcePackOrganizer`: `enabledPacks`, `disabledPacks`, `updateCallback`, `refreshEnabledProfiles()`, and the `Pack` methods (`isPinned`, `canBeEnabled`, `canBeDisabled`, `enable`, `disable`, `getCompatibility`).
-- [ ] `PackListWidget` and `ResourcePackEntry`: the `render` signature, `drawSelectionHighlight`, the `screen`, `pack`, and `widget` fields, `getScrollbarX`.
-- [ ] `EntryListWidget`: `itemHeight`, `headerHeight`, `isScrollbarVisible`, and the scroll API used by auto-scroll.
-- [ ] `Mouse.onMouseButton` signature and the `x` / `y` fields; `Screen.render` and `Screen.keyPressed` signatures.
-- [ ] `DrawContext` drawing calls (`fill`, scissor, `getMatrices()` type: `MatrixStack` vs. a 2D stack) and `Text.translatableWithFallback`.
+- [ ] Add the target to `settings.gradle.kts`; configure its loader dependencies (loader build script, `gradle.properties`, or a Stonecutter property table once the matrix grows).
+- [ ] `PackSelectionScreen`: the `availablePackList`, `selectedPackList`, and `model` fields, `repositionElements()`, `onClose()`, `clearSelected()`.
+- [ ] `PackSelectionModel`: `selected`, `unselected`, `onListChanged`, `updateRepoSelectedList()`, and the `Entry` methods (`isFixedPosition`, `canSelect`, `canUnselect`, `select`, `unselect`, `getCompatibility`).
+- [ ] `TransferableSelectionList` and `PackEntry`: the `render` signature, `renderSelection`, the `screen`, `pack`, and `parent` fields, `getScrollbarPosition`, `getPackId`.
+- [ ] `AbstractSelectionList`: `itemHeight`, `headerHeight`, `scrollbarVisible()`, and the scroll API used by auto-scroll (`getScrollAmount`, `setScrollAmount`, `clampScrollAmount`).
+- [ ] `MouseHandler.onPress` signature and the `minecraft` / `xpos` / `ypos` fields; `Screen.render` and `Screen.keyPressed` signatures.
+- [ ] `Window` size methods (`getScreenWidth` vs. `getWidth`), `GuiGraphics` drawing calls (`fill`, scissor, `pose()` type: `PoseStack` vs. a 2D stack), `Component.translatableWithFallback`.
 - [ ] Express differences with narrow Stonecutter conditions, not copied files.
-- [ ] Mixin config registered in the packaged JAR (`verifyJar` passes).
-- [ ] Run the whole packaged-JAR checklist, including the data pack screen.
-- [ ] Add the target to CI artifact validation (it counts targets automatically).
+- [ ] Mixin config registered for both loaders in the packaged JAR (`verifyJar` passes).
+- [ ] Run the [Mixin audit](#mixin-audit) on both loaders, then the whole packaged-JAR checklist, including the data pack screen.
+- [ ] Add the target to CI artifact validation (it counts targets automatically) and to the release acceptance matrix.
 - [ ] Fill this file's entry for the version; add a `CHANGELOG.md` line under `Compatibility`.
 
-Likely trouble spots, in order: `ResourcePackEntry.render` and `PackListWidget` (the list widgets were reworked in several releases), then `ResourcePackOrganizer` internals, then `DrawContext`.
+Likely trouble spots, in order: `PackEntry.render` and `TransferableSelectionList` (the list widgets were reworked in several releases), then `PackSelectionModel` internals, then `GuiGraphics`; then loader metadata and dependency version ranges.
+
+## Mixin audit
+
+Mixin target names (`method = "..."`, `@Accessor("...")`, `@Shadow` fields) are not checked at compile time on either loader: a wrong name builds fine and fails only when the game applies the mixin. Mixin can force that to happen at startup. Add this temporarily, run the dev client, and remove it again (do not commit it):
+
+```java
+// NeoForge: in the constructor of DragItNeoForge, with `IEventBus bus` as its parameter
+bus.addListener((FMLClientSetupEvent e) -> e.enqueueWork(() -> {
+    org.spongepowered.asm.mixin.MixinEnvironment.getCurrentEnvironment().audit();
+    System.out.println("DRAGIT_AUDIT_OK");
+}));
+
+// Fabric: a ClientModInitializer registered under "entrypoints" → "client" in fabric.mod.json
+public void onInitializeClient() {
+    org.spongepowered.asm.mixin.MixinEnvironment.getCurrentEnvironment().audit();
+    System.out.println("DRAGIT_AUDIT_OK");
+}
+```
+
+Run `runActiveClient` for each loader, wait for the main menu, and read `versions/<target>/run/logs/latest.log`. A healthy run logs `Force-loading class …` for `PackSelectionScreen`, `PackSelectionModel`, `TransferableSelectionList`, `TransferableSelectionList$PackEntry`, `AbstractSelectionList`, and `MouseHandler`, then `DRAGIT_AUDIT_OK`, with no `InvalidInjectionException`, `InvalidAccessorException`, or `Mixin apply` errors. It proves the mixins apply; it does not exercise the gestures, which still need the packaged-JAR checklist.
+
+To find a renamed member when porting, compare the old and new mapping files from the Loom cache by their official (obfuscated) names, or read `PackSelectionScreen` and friends in the generated sources (`genSources`).
 
 ## Target entries
 
-### MC 1.21.1 — Fabric
+### MC 1.21.1 — Fabric / NeoForge
 
-Targets: `1.21.1-fabric` · first mod version: 0.0.1-alpha · date: 2026-10-11 · **baseline for all diffs**
+Targets: `1.21.1-fabric`, `1.21.1-neoforge` · first mod version: 0.0.1-alpha · date: 2026-10-11 · **baseline for all diffs**
 
 #### Dependencies
 ```properties
 java_version=21
 fabric_loader_version=0.19.5        # min 0.16.4
-yarn_mappings=1.21.1+build.3
+neoforge_version=21.1.259
+neoforge_loader_version_range=[4,)
 ```
-`fabric.mod.json` pins Minecraft to exactly `1.21.1`. No Fabric API, no other libraries: MixinExtras (`@WrapMethod`) ships with Fabric Loader.
+Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.toml` pin Minecraft to exactly `1.21.1` (`[1.21.1,1.21.2)` on NeoForge). No Fabric API, no other libraries. MixinExtras (`@WrapMethod`) ships with both loaders: 0.5.5 in the dev runtimes of Fabric Loader 0.19.5 and NeoForge 21.1.259.
 
-#### API shapes (as used by the source tree, Yarn names)
+#### API shapes (as used by the source tree)
 
 | Area | Signature / note |
 |---|---|
-| `PackScreen` | Fields `availablePackList`, `selectedPackList` (`PackListWidget`) and `organizer` (`ResourcePackOrganizer`) via `@Accessor`. `initTabNavigation()` injected at `TAIL` (first init, resize, return from a dialog); `close()` at `HEAD`. Data pack screens use the same class |
-| `Screen.render` / `Screen.keyPressed` | `(DrawContext, int, int, float)` and `(int, int, int) → boolean`. `PackScreen` declares neither and Mixin cannot inject into inherited methods, so the hooks sit on `Screen` and bail out for anything that is not a `PackScreen` |
-| `Mouse.onMouseButton` | `(long window, int button, int action, int mods)` injected at `HEAD`, cancellable; the one place that sees every press and release and can hold a press back from vanilla. Fields `client`, `x`, `y` are shadowed (`x`/`y` are physical window pixels) |
-| `PackListWidget.ResourcePackEntry.render` | `(DrawContext, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float tickDelta)`, wrapped with `@WrapMethod`; fields `pack` and `widget` via `@Accessor` |
-| `PackListWidget.drawSelectionHighlight` | `(DrawContext, int y, int entryWidth, int entryHeight, int borderColor, int fillColor)`, wrapped; skipped because the mod draws the fading highlight itself. Field `screen`, invoker `getScrollbarX` |
-| `EntryListWidget` | Fields `itemHeight`, `headerHeight`, invoker `isScrollbarVisible`; `getScrollAmount()` / `setScrollAmount()`, `getRowLeft()`, `getX()`, `getRight()`, `getBottom()` used directly |
-| `ResourcePackOrganizer` | Fields `enabledPacks`, `disabledPacks` (`List<ResourcePackProfile>`), `updateCallback` (`Runnable`, rebuilds both widget lists); invoker `refreshEnabledProfiles()`. Vanilla has no "insert at index", so the mod edits the lists directly |
-| `ResourcePackOrganizer.Pack` | `isPinned()`, `canBeEnabled()`, `canBeDisabled()`, `enable()`, `disable()`, `getCompatibility()` |
-| `ResourcePackProfile` | `getId()`, `isPinned()`, `isRequired()`, `getCompatibility()`, `getInitialPosition()` |
-| `DrawContext` | `fill`, `enableScissor` / `disableScissor`, `drawTextWithShadow`, `getMatrices()` is a `MatrixStack` (`push()` / `pop()`, 3D `translate`) |
-| Drop confirmation | `ConfirmScreen` with `Text.translatable("pack.incompatible.confirm.title")` and `getCompatibility().getConfirmMessage()` |
+| `PackSelectionScreen` | Fields `availablePackList`, `selectedPackList` (`TransferableSelectionList`) and `model` (`PackSelectionModel`) via `@Accessor`. `repositionElements()` injected at `TAIL` (first init, resize, return from a dialog); `onClose()` at `HEAD`; `clearSelected()` called directly. Data pack screens use the same class |
+| `Screen.render` / `Screen.keyPressed` | `(GuiGraphics, int, int, float)` and `(int, int, int) → boolean`. `PackSelectionScreen` declares neither and Mixin cannot inject into inherited methods, so the hooks sit on `Screen` and bail out for anything that is not a `PackSelectionScreen` |
+| `MouseHandler.onPress` | `(long window, int button, int action, int mods)` injected at `HEAD`, cancellable; the one place that sees every press and release and can hold a press back from vanilla. Fields `minecraft`, `xpos`, `ypos` are shadowed (`xpos`/`ypos` are physical window pixels) |
+| `TransferableSelectionList.PackEntry.render` | `(GuiGraphics, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float partialTick)`, wrapped with `@WrapMethod`; fields `pack` and `parent` via `@Accessor`; `getPackId()` |
+| `TransferableSelectionList.renderSelection` | `(GuiGraphics, int y, int entryWidth, int entryHeight, int borderColor, int fillColor)`, wrapped; skipped because the mod draws the fading highlight itself. Field `screen`, invoker `getScrollbarPosition` |
+| `AbstractSelectionList` | Fields `itemHeight`, `headerHeight`, invoker `scrollbarVisible`; `getSelected()`, `clampScrollAmount()`, `getScrollAmount()` / `setScrollAmount()`, `getRowLeft()`, `getX()`, `getRight()`, `getBottom()` used directly |
+| `PackSelectionModel` | Fields `selected`, `unselected` (`List<Pack>`), `onListChanged` (`Runnable`, rebuilds both widget lists); invoker `updateRepoSelectedList()`. Vanilla has no "insert at index", so the mod edits the lists directly |
+| `PackSelectionModel.Entry` | `isFixedPosition()`, `canSelect()`, `canUnselect()`, `select()`, `unselect()`, `getCompatibility()` |
+| `Pack` (`server.packs.repository`) | `getId()`, `isFixedPosition()`, `isRequired()`, `getCompatibility()`, `getDefaultPosition()` (its `insert(...)` takes `Pack::selectionConfig`) |
+| `Minecraft` / `Window` | `font`, `mouseHandler`, `screen`, `options.languageCode`, `getWindow()`. Window pixels: `getScreenWidth()` / `getScreenHeight()`; GUI-scaled: `getGuiScaledWidth()` / `getGuiScaledHeight()`; `getGuiScale()`; `getWindow()` is the GLFW handle |
+| `GuiGraphics` | `fill`, `enableScissor` / `disableScissor`, `drawString`, `renderOutline`; `pose()` is a `PoseStack` (`pushPose()` / `popPose()`, 3D `translate`) |
+| Drop confirmation | `ConfirmScreen` with `Component.translatable("pack.incompatible.confirm.title")` and `getCompatibility().getConfirmation()` |
 
 #### Loader notes
-- Fabric only. The Mixin config is registered in `fabric.mod.json` (`"mixins"`); the mod has no entry points and no Mod Menu integration.
-- Fabric Loader 0.16.4 is the version the mod was first developed and tested against, hence the minimum; `@WrapMethod` needs the MixinExtras that Fabric Loader bundles. Development runs on the newer version in `gradle.properties`.
-- Stonecutter conditions are not used yet; the tree is identical for the only target.
+- Fabric: Mixins registered in `fabric.mod.json`; no entry point and no Mod Menu integration (Mod Menu lists the mod and its icon from the metadata alone). Built with Loom through `loom-back-compat`; the Mojang → intermediary remap is inlined into the mixin classes, so the JAR has no `refmap`.
+- NeoForge: Mixins registered via `[[mixins]]` in `neoforge.mods.toml`; `javafml` needs an `@Mod` class, so `DragItNeoForge` is an empty `Dist.CLIENT` class. Runtime names are Mojang names, so the target strings are used as they are. All dependencies are `side = "CLIENT"`.
+- Stonecutter conditions only select loaders (`//? fabric`, `//? neoforge`); there are no Minecraft-version conditions yet.
 
 #### Quirks
-- Loom 1.18 inlines the Yarn → intermediary remap into the mixin classes, so the packaged JAR has no `refmap`. This is expected; `verifyJar` only checks a refmap if the config names one.
-- The mod's lang files are only loaded when Fabric API is present, so `DragRenderer` uses `Text.translatableWithFallback` and picks the fallback text from the selected language. Test the packaged JAR both with and without Fabric API.
-- The built-in Default pack is *required* but not *pinned* in 1.21.1: it can be re-ordered like any pack and never disabled. Only pinned packs block drops.
+- NeoForge mod ids match `[a-z][a-z0-9_]{1,63}`; the prototype's `drag-it` is invalid there, hence `dragit`.
+- Yarn `Window.getWidth()` / `getHeight()` (window pixels) became Mojang `getScreenWidth()` / `getScreenHeight()`, while Mojang `getWidth()` / `getHeight()` is the framebuffer size. The old names still compile, so a mechanical rename silently gives wrong pointer coordinates under HiDPI scaling.
+- On Fabric the mod's lang files are only loaded when Fabric API is present, so `DragRenderer` uses `Component.translatableWithFallback` and picks the fallback text from the selected language. Test the Fabric JAR both with and without Fabric API.
+- The built-in Default pack is *required* but not *fixed-position* in 1.21.1: it can be re-ordered like any pack and never disabled. Only fixed-position (pinned) packs block drops.
 - Vanilla re-sorts the available list when the screen reopens, so only the enabled order persists.
+- The icon is 16×16 pixel art. NeoForge sets `logoBlur = false` in the descriptor; Mod Menu has no metadata option for icon filtering.
 
 #### Verified
-- Builds in CI-equivalent conditions locally (`clean buildAndCollect` plus `verifyJar`) as of 2026-10-11.
-- Manual packaged-JAR test of 0.0.1-alpha: not recorded here — fill in on the release run.
+- 2026-10-12, mod 0.0.1-alpha: `clean buildAndCollect` passes (both `verifyJar` checks). The Mixin audit ran on both dev clients: all mixins applied, no errors (see [Mixin audit](#mixin-audit)).
+- Manual packaged-JAR gesture test of 0.0.1-alpha: not recorded here — fill in on the release run.
