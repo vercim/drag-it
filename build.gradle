@@ -38,17 +38,6 @@ java {
 	withSourcesJar()
 }
 
-loom {
-	runs {
-		client {
-			// ./gradlew runClient -Pselftest  -> runs the scripted end-to-end check (see SelfTest) and exits.
-			if (project.hasProperty('selftest')) {
-				vmArg '-Ddragit.selftest=true'
-			}
-		}
-	}
-}
-
 jar {
 	inputs.property "archivesName", project.base.archivesName
 	from("LICENSE") {

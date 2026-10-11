@@ -1,6 +1,5 @@
 package com.dragit.mixin;
 
-import com.dragit.dev.SelfTest;
 import com.dragit.drag.DragController;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
@@ -30,10 +29,6 @@ public abstract class MouseMixin {
 
 	@Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
 	private void dragit$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
-		if (SelfTest.ENABLED) {
-			ci.cancel(); // the scripted check drives the screen itself; stray real clicks would only disturb it
-			return;
-		}
 		if (!(this.client.currentScreen instanceof PackScreen screen) || this.client.getOverlay() != null) {
 			return;
 		}
