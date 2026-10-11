@@ -9,8 +9,9 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 | Target | Loader | Java |
 |---|---|---:|
 | `1.21.1-fabric` | Fabric | 21 |
+| `1.21.1-neoforge` | NeoForge | 21 |
 
-The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. The `-fabric` suffix is kept even though Fabric is the only loader, so a second loader or Minecraft version slots in the same way it does in Handycam.
+The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`.
 
 ## Requirements
 
@@ -24,23 +25,23 @@ The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). 
 Windows (PowerShell):
 
 ```powershell
-Set-Content -NoNewline .sc_active_version "1.21.1-fabric"
+Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or 1.21.1-neoforge
 .\gradlew.bat runActiveClient
 .\gradlew.bat buildActive
 .\gradlew.bat buildAndCollect
 .\gradlew.bat clean buildAndCollect
-.\gradlew.bat :1.21.1-fabric:build
+.\gradlew.bat :1.21.1-neoforge:build
 ```
 
 macOS / Linux:
 
 ```bash
-printf '1.21.1-fabric' > .sc_active_version
+printf '1.21.1-fabric' > .sc_active_version   # or 1.21.1-neoforge
 ./gradlew runActiveClient
 ./gradlew buildActive
 ./gradlew buildAndCollect
 ./gradlew clean buildAndCollect
-./gradlew :1.21.1-fabric:build
+./gradlew :1.21.1-neoforge:build
 ```
 
 | Task | What it does |
@@ -54,23 +55,28 @@ printf '1.21.1-fabric' > .sc_active_version
 
 Do not use `clean` routinely: it discards Gradle and Minecraft preparation work.
 
-Outputs: collected release JARs are in `build/libs/` (for example `drag-it-0.0.1-alpha+1.21.1-fabric.jar`); per-target output is in `versions/<target>/build/libs/`.
+Outputs: collected release JARs are in `build/libs/` (for example `dragit-0.0.1-alpha+1.21.1-fabric.jar` and `dragit-0.0.1-alpha+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`.
 
-After changing `.sc_active_version`, re-sync Gradle (IDE reload or any `gradlew` call) so Stonecutter regenerates the target. Commit with `1.21.1-fabric` active (the configured `vcsVersion`).
+After changing `.sc_active_version`, re-sync Gradle (IDE reload or any `gradlew` call) so Stonecutter rewrites the loader-specific source blocks. Commit with `1.21.1-fabric` active (the configured `vcsVersion`).
 
 ## Conditional sources
 
-Shared code is ordinary Java. Today there is no loader- or version-specific code, so the tree has no Stonecutter conditions. When a second target needs them, keep them as narrow as practical and next to the affected code:
+Shared code is ordinary Java. Loader-specific code uses Stonecutter conditions; the inactive loader's code appears commented out in the source tree. The only loader-specific file today is the NeoForge `@Mod` class:
 
 ```java
-//? if >=1.21.2 {
-newCall();
-//?} else {
-/*oldCall();
+package dev.vercim.dragit.neoforge;
+
+//? neoforge {
+
+/*import net.neoforged.fml.common.Mod;
+
+@Mod(...)
+public final class DragItNeoForge {
+}
 *///?}
 ```
 
-Never copy files per version. The inactive branch of a condition appears commented out in the source tree.
+Keep conditions as narrow as practical. If a whole entry point is loader-specific, keep its `package` declaration outside the conditional block so the inactive target generates a valid, otherwise empty source file. Minecraft-version differences are expressed the same way, next to the affected code (`//? if >=1.21.2 { … //?} else { /* … *///?}`). Never copy files per version.
 
 ## CI
 
@@ -84,22 +90,28 @@ Documentation-only changes (including `docs/`, `README.md`, `CHANGELOG.md`) do n
 
 `build` runs `verifyJar` on every target. It opens the release JAR and fails when:
 
-- `fabric.mod.json` is missing, still has `${...}` placeholders, or has the wrong id;
-- `fabric.mod.json` does not register `drag-it.mixins.json`;
+- the loader descriptor (`fabric.mod.json` or `META-INF/neoforge.mods.toml`) is missing, still has `${...}` placeholders, or declares the wrong mod id;
+- the descriptor does not register `dragit.mixins.json`;
 - a class named in the Mixin config is missing from the JAR (or a `refmap` it names, if there is one);
-- the license file is not bundled.
+- the license file is not bundled;
+- the other loader's descriptor or classes leaked into the JAR, or the NeoForge `@Mod` class is missing.
 
-This guards against the failure that broke Handycam 1.3.2: a JAR that loads while every injection silently does nothing.
+This guards against the failure that broke Handycam 1.3.2: a JAR that loads while every injection silently does nothing. It does **not** check that Mixin target names exist; see [Mixin audit](VERSION_NOTES.md#mixin-audit).
 
 A change is ready to merge when:
 
 - every target compiles and produces its release JAR;
-- `verifyJar` passes;
+- `verifyJar` passes on every target;
 - behavior stays compatible with the previous release.
 
 ## Packaged-JAR validation
 
-IDE runs are not enough for loader or Mixin changes. Before releasing, with a clean client profile and only the JAR from `build/libs/` plus Fabric Loader (no Fabric API, then once more with it):
+IDE runs are not enough for loader or Mixin changes. Before releasing, with a clean client profile and only the JAR from `build/libs/`:
+
+- **Fabric:** Fabric Loader only, without Fabric API; then once more with Fabric API.
+- **NeoForge:** NeoForge only.
+
+On each:
 
 - open Options → Resource Packs and confirm the game starts without Mixin errors in the log;
 - lift a pack, re-order it inside the enabled list, move it between lists, and drop it outside both lists;
@@ -109,7 +121,8 @@ IDE runs are not enough for loader or Mixin changes. Before releasing, with a cl
 - if the profile has a pinned pack, confirm it cannot be lifted and that the red blocked marker with the "Fixed position" hint appears next to it;
 - drop an incompatible pack into the enabled list and confirm the vanilla dialog;
 - repeat the basics on the data pack screen (create a world → Data Packs);
-- confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash.
+- confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
+- confirm the mod list shows the pixel icon sharp (NeoForge: `logoBlur = false`).
 
 ## Changelog
 
@@ -138,7 +151,7 @@ The tag workflow (`.github/workflows/release.yml`):
 - rejects pre-release suffixes other than `-alpha` / `-beta` (they become alpha / beta releases on the platforms);
 - builds every target with `clean build` (including `verifyJar`) and requires exactly one release JAR per target;
 - refuses to overwrite an existing GitHub release;
-- publishes every target to Modrinth and CurseForge, then creates the GitHub release with the changelog section as notes;
+- publishes every target to Modrinth and CurseForge, then creates the GitHub release with the changelog section as notes and both JARs attached;
 - posts the changelog to Discord through a webhook (best effort: skipped when `DISCORD_WEBHOOK_URL` is unset, and a failure does not fail the run).
 
 Unlike Handycam, Modrinth and CurseForge are optional here, so a release can go out before those project pages exist. A platform is published to only when both its variable and its secret are set; otherwise the run prints a warning and skips it. The GitHub release is always created.
@@ -164,5 +177,7 @@ $env:MODRINTH_TOKEN = "x"
 - **"Dependency requires at least JVM runtime version 25"** → Gradle was launched with an older JDK; launch it with JDK 25+ (`JAVA_HOME`, or `setup-java` in CI).
 - **Transparent world in dev** → Gradle is using the wrong JDK; use a Java 21 toolchain.
 - **"Cannot find symbol" in a generated target** → check the active Stonecutter target and its conditional blocks, then re-sync Gradle.
+- **Wrong client runs** → update `.sc_active_version` and use `runActiveClient`.
 - **`Permission denied` when moving or deleting source directories on Windows** → a Gradle daemon holds the files; run `.\gradlew.bat --stop`.
-- **`verifyJar` fails** → the message names the missing entry; inspect the JAR with `unzip -l`. A mod that loads but does nothing in the packaged JAR usually means the Mixin config is not registered.
+- **NeoForge says the mod id is invalid** → NeoForge ids match `[a-z][a-z0-9_]{1,63}`; hyphens are rejected. Keep `mod_id=dragit`.
+- **`verifyJar` fails** → the message names the missing entry; inspect the JAR with `unzip -l`. A mod that loads but does nothing in the packaged JAR usually means the Mixin config is not registered, or a Mixin target name no longer exists.
