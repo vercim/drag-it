@@ -135,7 +135,7 @@ On each:
 
 - One section per version, newest first: `## [<mod_version>] - YYYY-MM-DD` (the version is exactly `mod_version` from `gradle.properties`, including any `-alpha` / `-beta` suffix).
 - Group entries under the [Keep a Changelog](https://keepachangelog.com/) headings `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`; use only the ones a version needs. Support for a new Minecraft version or loader goes under `Added`. Short bullets, one change each. The published `0.0.1-alpha` section keeps its older headings (`Overall`, `Compatibility`, ...) and is not rewritten.
-- Describe changes visible to players or integrators; skip internal-only edits (typos, CI path filters).
+- Describe changes that matter to players or contributors; skip internal changes (build plumbing, refactors, docs upkeep, typos, CI path filters).
 - Do not put other `## [` headings inside a version's section: the release workflow publishes everything between its heading and the next `## [`.
 - Work not yet released may be collected under `## [Unreleased]` at the top and renamed to the version when releasing.
 

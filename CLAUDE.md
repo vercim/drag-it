@@ -111,7 +111,7 @@ The mod adds no user-visible text and ships no lang files; a refused drop is sho
 
 `CHANGELOG.md` is user-facing and is published verbatim as the release notes on GitHub, Modrinth, and CurseForge. Keep it current as part of the change, not at release time.
 
-- Add an entry for every player-visible change: new or changed gestures, fixes, compatibility (new versions/loaders, dependency requirements), and notable architecture or documentation changes. Skip internal-only edits.
+- Add an entry for every player-visible change: new or changed gestures, fixes, and compatibility (new versions/loaders, dependency requirements), plus anything a contributor must know (a changed way to build, a dropped target). Skip internal changes: build plumbing, refactors, CI tweaks, docs upkeep.
 - Format: `## [<mod_version>] - YYYY-MM-DD`, newest first; group bullets under the [Keep a Changelog](https://keepachangelog.com/) headings `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security` (only those used); one short bullet per change. Support for a new Minecraft version or loader goes under `Added`. The published `0.0.1-alpha` section keeps its older headings and is not rewritten.
 - The version must equal `mod_version` in `gradle.properties` (including `-alpha` / `-beta`). The release workflow fails if the section is missing and publishes everything up to the next `## [` heading, so never nest another `## [` heading inside a section.
 - Unreleased work may sit under `## [Unreleased]` at the top; rename it when releasing.
