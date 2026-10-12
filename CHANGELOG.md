@@ -6,8 +6,6 @@
 
 ### Changed
 - The outline of a multi-selection glides: a Shift+click range grows out of the row it started at, a shorter range shrinks back, and a Ctrl+click extends or splits the outline instead of it appearing all at once.
-- Dependency versions that differ per target live in `versions/<target>/gradle.properties`, and the NeoForge descriptor takes its Minecraft range from there.
-- The development docs cover the 1.21.4 target and switching targets with the `Set active project to <target>` task.
 
 ### Removed
 - The "Fixed position" hint next to the cursor over a pinned pack; the red marker stays. The mod no longer shows any text.
