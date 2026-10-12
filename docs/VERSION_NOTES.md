@@ -107,7 +107,7 @@ To find a renamed member when porting, compare the old and new mapping files fro
 
 ### MC 1.21.4 — Fabric / NeoForge
 
-Targets: `1.21.4-fabric`, `1.21.4-neoforge` · first mod version: 0.0.1-alpha · date: 2026-10-12
+Targets: `1.21.4-fabric`, `1.21.4-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-12
 
 #### Dependencies
 ```properties
