@@ -27,7 +27,7 @@ The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). 
 Windows (PowerShell):
 
 ```powershell
-Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or any other target
+.\gradlew.bat "Set active project to 1.21.4-fabric"   # or any other target; do this before runActiveClient
 .\gradlew.bat runActiveClient
 .\gradlew.bat buildActive
 .\gradlew.bat buildAndCollect
@@ -38,7 +38,7 @@ Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or any other targe
 macOS / Linux:
 
 ```bash
-printf '1.21.1-fabric' > .sc_active_version   # or any other target
+./gradlew "Set active project to 1.21.4-fabric"   # or any other target; do this before runActiveClient
 ./gradlew runActiveClient
 ./gradlew buildActive
 ./gradlew buildAndCollect
@@ -48,6 +48,8 @@ printf '1.21.1-fabric' > .sc_active_version   # or any other target
 
 | Task | What it does |
 |---|---|
+| `Set active project to <target>` | Makes a target active and rewrites the version and loader comment blocks in `src/` for it |
+| `Reset active project` | Back to `1.21.1-fabric`; run it before every commit |
 | `runActiveClient` | Runs the client of the active target |
 | `buildActive` | Builds the active target |
 | `buildAndCollect` | Builds every target and collects release JARs in `build/libs/` |
@@ -59,7 +61,7 @@ Do not use `clean` routinely: it discards Gradle and Minecraft preparation work.
 
 Outputs: collected release JARs are in `build/libs/` (for example `dragit-0.0.1-alpha+1.21.1-fabric.jar` and `dragit-0.0.1-alpha+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`.
 
-After changing `.sc_active_version`, re-sync Gradle (IDE reload or any `gradlew` call) so Stonecutter rewrites the loader-specific source blocks. Commit with `1.21.1-fabric` active (the configured `vcsVersion`).
+Switch the active target only with the `Set active project to <target>` task (all of them are listed by `gradlew tasks --group stonecutter`). It updates `.sc_active_version` **and** rewrites the version and loader comment blocks in `src/`. Editing `.sc_active_version` by hand is not enough: the next build compiles `src/` as it is and fails with errors such as "cannot find symbol `getScrollAmount()`". `Refresh active project` repairs comments left in a wrong state. Before committing, run `Reset active project` (back to `1.21.1-fabric`, the configured `vcsVersion`); the diff must not contain comment flips or a changed `.sc_active_version`.
 
 ## Conditional sources
 
@@ -132,7 +134,7 @@ On each:
 [`CHANGELOG.md`](../CHANGELOG.md) is user-facing and is also published as the release notes, so it must be updated together with the version.
 
 - One section per version, newest first: `## [<mod_version>] - YYYY-MM-DD` (the version is exactly `mod_version` from `gradle.properties`, including any `-alpha` / `-beta` suffix).
-- Group entries under `###` headings already in use: `Overall`, `Fixes`, `Compatibility`, `Architecture`, `Documentation`. Short bullets, one change each.
+- Group entries under the [Keep a Changelog](https://keepachangelog.com/) headings `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`; use only the ones a version needs. Support for a new Minecraft version or loader goes under `Added`. Short bullets, one change each. The published `0.0.1-alpha` section keeps its older headings (`Overall`, `Compatibility`, ...) and is not rewritten.
 - Describe changes visible to players or integrators; skip internal-only edits (typos, CI path filters).
 - Do not put other `## [` headings inside a version's section: the release workflow publishes everything between its heading and the next `## [`.
 - Work not yet released may be collected under `## [Unreleased]` at the top and renamed to the version when releasing.
@@ -180,7 +182,7 @@ $env:MODRINTH_TOKEN = "x"
 - **"Dependency requires at least JVM runtime version 25"** → Gradle was launched with an older JDK; launch it with JDK 25+ (`JAVA_HOME`, or `setup-java` in CI).
 - **Transparent world in dev** → Gradle is using the wrong JDK; use a Java 21 toolchain.
 - **"Cannot find symbol" in a generated target** → check the active Stonecutter target and its conditional blocks, then re-sync Gradle.
-- **Wrong client runs** → update `.sc_active_version` and use `runActiveClient`.
+- **Wrong client runs, or "cannot find symbol" in `src/` right after switching target** → switch with `Set active project to <target>` (see [Commands](#commands)), not by editing `.sc_active_version`.
 - **`Permission denied` when moving or deleting source directories on Windows** → a Gradle daemon holds the files; run `.\gradlew.bat --stop`.
 - **NeoForge says the mod id is invalid** → NeoForge ids match `[a-z][a-z0-9_]{1,63}`; hyphens are rejected. Keep `mod_id=dragit`.
 - **`verifyJar` fails** → the message names the missing entry; inspect the JAR with `unzip -l`. A mod that loads but does nothing in the packaged JAR usually means the Mixin config is not registered, or a Mixin target name no longer exists.

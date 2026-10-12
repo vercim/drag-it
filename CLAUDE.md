@@ -15,10 +15,10 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 
 ## Current state
 
-- Version `0.0.1-alpha`, the first pre-release (not yet published).
+- Version `0.0.1-alpha` is published (tag `v0.0.1-alpha`, GitHub pre-release, 2026-10-11). Later work collects under `## [Unreleased]` in `CHANGELOG.md`; `mod_version` is bumped, and that section renamed, at the next release. Never edit a published version's section.
 - Targets: `1.21.1-fabric`, `1.21.1-neoforge`, `1.21.4-fabric`, `1.21.4-neoforge`, declared once in `settings.gradle.kts`. Values that differ per target (`fabric_loader_min_version`, `neoforge_version`, `minecraft_version_range`) live in `versions/<target>/gradle.properties`; the rest is in the root `gradle.properties`.
 - The 1.21.4 port is in progress on `feature/expand-supported-versions` (compiles, `verifyJar` passes, Mixin audit clean on both loaders; the packaged-JAR gesture test is still open, see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
-- `vcsVersion = 1.21.1-fabric`: commit with `.sc_active_version` set to `1.21.1-fabric`.
+
 - Mod id is `dragit` on both loaders. NeoForge only accepts `[a-z][a-z0-9_]{1,63}`, so a hyphenated id such as `drag-it` is invalid there. The repository, README links, and platform slugs keep `drag-it`.
 - No Fabric API and no other libraries. MixinExtras comes with both loaders; the Mixin API is on both classpaths.
 - Metadata pins Minecraft to exactly the target's version (one release, e.g. `[1.21.4,1.21.5)` on NeoForge); a JAR never claims a version it was not built and tested against.
@@ -112,7 +112,7 @@ The mod adds no user-visible text and ships no lang files; a refused drop is sho
 `CHANGELOG.md` is user-facing and is published verbatim as the release notes on GitHub, Modrinth, and CurseForge. Keep it current as part of the change, not at release time.
 
 - Add an entry for every player-visible change: new or changed gestures, fixes, compatibility (new versions/loaders, dependency requirements), and notable architecture or documentation changes. Skip internal-only edits.
-- Format: `## [<mod_version>] - YYYY-MM-DD`, newest first; group bullets under `###` headings already in use (`Overall`, `Fixes`, `Compatibility`, `Architecture`, `Documentation`); one short bullet per change.
+- Format: `## [<mod_version>] - YYYY-MM-DD`, newest first; group bullets under the [Keep a Changelog](https://keepachangelog.com/) headings `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security` (only those used); one short bullet per change. Support for a new Minecraft version or loader goes under `Added`. The published `0.0.1-alpha` section keeps its older headings and is not rewritten.
 - The version must equal `mod_version` in `gradle.properties` (including `-alpha` / `-beta`). The release workflow fails if the section is missing and publishes everything up to the next `## [` heading, so never nest another `## [` heading inside a section.
 - Unreleased work may sit under `## [Unreleased]` at the top; rename it when releasing.
 - Bumping `mod_version` and adding its changelog section happen together. Full rules and release steps: [docs/WORKFLOW.md](docs/WORKFLOW.md#changelog).
