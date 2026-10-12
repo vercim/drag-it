@@ -70,7 +70,7 @@ For each new version, after adding the target:
 - [ ] `PackSelectionScreen`: the `availablePackList`, `selectedPackList`, and `model` fields, `repositionElements()`, `onClose()`, `clearSelected()`.
 - [ ] `PackSelectionModel`: `selected`, `unselected`, `onListChanged`, `updateRepoSelectedList()`, and the `Entry` methods (`isFixedPosition`, `canSelect`, `canUnselect`, `select`, `unselect`, `getCompatibility`).
 - [ ] `TransferableSelectionList` and `PackEntry`: the `render` signature, `renderSelection`, the `screen`, `pack`, and `parent` fields, `getScrollbarPosition`, `getPackId`.
-- [ ] `AbstractSelectionList`: `itemHeight`, `headerHeight`, `scrollbarVisible()`, and the scroll API used by auto-scroll (`getScrollAmount`, `setScrollAmount`, `clampScrollAmount`).
+- [ ] `AbstractSelectionList`: `itemHeight`, `headerHeight`, `scrollbarVisible()` (check which class declares it), and the scroll API used by auto-scroll (`ListGeometry.scrollAmount` / `clampScroll`, `setScrollAmount`).
 - [ ] `MouseHandler.onPress` signature and the `minecraft` / `xpos` / `ypos` fields; `Screen.render` and `Screen.keyPressed` signatures.
 - [ ] `Window` size methods (`getScreenWidth` vs. `getWidth`), `GuiGraphics` drawing calls (`fill`, scissor, `pose()` type: `PoseStack` vs. a 2D stack).
 - [ ] Express differences with narrow Stonecutter conditions, not copied files.
@@ -105,6 +105,39 @@ To find a renamed member when porting, compare the old and new mapping files fro
 
 ## Target entries
 
+### MC 1.21.4 — Fabric / NeoForge
+
+Targets: `1.21.4-fabric`, `1.21.4-neoforge` · first mod version: 0.0.1-alpha · date: 2026-10-12
+
+#### Dependencies
+```properties
+java_version=21
+fabric_loader_version=0.19.5        # min 0.16.9 (versions/1.21.4-fabric/gradle.properties)
+neoforge_version=21.4.158           # versions/1.21.4-neoforge/gradle.properties
+neoforge_loader_version_range=[4,)
+minecraft_version_range=[1.21.4,1.21.5)   # NeoForge descriptor
+```
+Official Mojang mappings on both loaders, same as the baseline. Only the dev-runtime Fabric Loader 0.19.5 has been run; the 0.16.9 minimum is an assumption (the loader generation 1.21.4 launched with), not a tested floor. MixinExtras 0.5.3 in the NeoForge dev runtime.
+
+#### API differences (vs. baseline)
+| Area | Baseline (1.21.1) | 1.21.4 | Where / condition |
+|---|---|---|---|
+| Scroll offset | `AbstractSelectionList.getScrollAmount()` | `scrollAmount()` (now in `AbstractScrollArea`) | `ListGeometry.scrollAmount`, `//? if >=1.21.4` |
+| Re-clamp the scroll offset | `clampScrollAmount()` | `refreshScrollAmount()`; `setScrollAmount` clamps on its own | `ListGeometry.clampScroll`, `//? if >=1.21.4` |
+| `scrollbarVisible()` | declared by `AbstractSelectionList` | declared by the new superclass `AbstractScrollArea` | `mixin/accessor/AbstractScrollAreaAccessor.java`, the `@Mixin` target changes, `//? if >=1.21.4` |
+| Scrollbar X | `TransferableSelectionList.getScrollbarPosition()` | `scrollBarX()` | `mixin/accessor/TransferableSelectionListAccessor.java`, `//? if >=1.21.4` |
+
+Unchanged, checked with `javap` on the 1.21.4 mapped jar and by the Mixin audit: `PackSelectionScreen` (`availablePackList`, `selectedPackList`, `model`, `repositionElements`, `onClose`, `clearSelected`), `PackSelectionModel` (`selected`, `unselected`, `onListChanged`, `updateRepoSelectedList`, the `Entry` methods), `PackEntry` (`pack`, `parent`, `render(GuiGraphics, 7 × int, boolean, float)`, `getPackId`), `TransferableSelectionList.screen` and `renderSelection`, `AbstractSelectionList.itemHeight` / `headerHeight` and its row geometry, `MouseHandler.onPress(long, int, int, int)` with `minecraft` / `xpos` / `ypos`, `Screen.render` / `keyPressed`, `Window` size methods, `GuiGraphics` (`fill`, scissor, `drawString`), `pose()` is still a `PoseStack`.
+
+#### Quirks
+- A Mixin `@Invoker` / `@Accessor` finds only members the target class declares itself. Pointing `AbstractSelectionListAccessor` at the inherited `scrollbarVisible` would build and then fail when the game applies it; that is why the scrollbar invoker has its own interface with a version-dependent target.
+- Stonecutter version predicates compare against the version string of the node (`1.21.4`). The condition boundary is `>=1.21.4` because only 1.21.1 and 1.21.4 have been looked at; if 1.21.2 / 1.21.3 are ever added, check where each rename actually happened and narrow the conditions.
+- `runClient` in the dev environment exits with `0xC0000409` on Windows when the audit helper calls `System.exit` from a thread; that is the helper, not the mod.
+
+#### Verified
+- 2026-10-12, mod 0.0.1-alpha: `clean buildAndCollect` passes for all four targets (`verifyJar` included). Mixin audit on both dev clients: all mixins applied, `DRAGIT_AUDIT_OK`, no errors.
+- Manual packaged-JAR gesture test on 1.21.4: not done yet (Fabric ☐ NeoForge ☐).
+
 ### MC 1.21.1 — Fabric / NeoForge
 
 Targets: `1.21.1-fabric`, `1.21.1-neoforge` · first mod version: 0.0.1-alpha · date: 2026-10-11 · **baseline for all diffs**
@@ -127,7 +160,7 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 | `MouseHandler.onPress` | `(long window, int button, int action, int mods)` injected at `HEAD`, cancellable; the one place that sees every press and release and can hold a press back from vanilla. Fields `minecraft`, `xpos`, `ypos` are shadowed (`xpos`/`ypos` are physical window pixels) |
 | `TransferableSelectionList.PackEntry.render` | `(GuiGraphics, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered, float partialTick)`, wrapped with `@WrapMethod`; fields `pack` and `parent` via `@Accessor`; `getPackId()` |
 | `TransferableSelectionList.renderSelection` | `(GuiGraphics, int y, int entryWidth, int entryHeight, int borderColor, int fillColor)`, wrapped; skipped because the mod draws the fading highlight itself. Field `screen`, invoker `getScrollbarPosition` |
-| `AbstractSelectionList` | Fields `itemHeight`, `headerHeight`, invoker `scrollbarVisible`; `getSelected()`, `clampScrollAmount()`, `getScrollAmount()` / `setScrollAmount()`, `getRowLeft()`, `getX()`, `getRight()`, `getBottom()` used directly |
+| `AbstractSelectionList` | Fields `itemHeight`, `headerHeight`, invoker `scrollbarVisible` (own interface `AbstractScrollAreaAccessor`); `getSelected()`, `clampScrollAmount()`, `getScrollAmount()` / `setScrollAmount()`, `getRowLeft()`, `getX()`, `getRight()`, `getBottom()` used directly |
 | `PackSelectionModel` | Fields `selected`, `unselected` (`List<Pack>`), `onListChanged` (`Runnable`, rebuilds both widget lists); invoker `updateRepoSelectedList()`. Vanilla has no "insert at index", so the mod edits the lists directly |
 | `PackSelectionModel.Entry` | `isFixedPosition()`, `canSelect()`, `canUnselect()`, `select()`, `unselect()`, `getCompatibility()` |
 | `Pack` (`server.packs.repository`) | `getId()`, `isFixedPosition()`, `isRequired()`, `getCompatibility()`, `getDefaultPosition()` (its `insert(...)` takes `Pack::selectionConfig`) |
@@ -138,7 +171,7 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 #### Loader notes
 - Fabric: Mixins registered in `fabric.mod.json`; no entry point and no Mod Menu integration (Mod Menu lists the mod and its icon from the metadata alone). Built with Loom through `loom-back-compat`; the Mojang → intermediary remap is inlined into the mixin classes, so the JAR has no `refmap`.
 - NeoForge: Mixins registered via `[[mixins]]` in `neoforge.mods.toml`; `javafml` needs an `@Mod` class, so `DragItNeoForge` is an empty `Dist.CLIENT` class. Runtime names are Mojang names, so the target strings are used as they are. All dependencies are `side = "CLIENT"`.
-- Stonecutter conditions only select loaders (`//? fabric`, `//? neoforge`); there are no Minecraft-version conditions yet.
+- Stonecutter conditions select loaders (`//? fabric`, `//? neoforge`) and, from the 1.21.4 port, Minecraft versions (`//? if >=1.21.4`); the 1.21.1 branch of such a condition is the baseline.
 
 #### Quirks
 - NeoForge mod ids match `[a-z][a-z0-9_]{1,63}`; the prototype's `drag-it` is invalid there, hence `dragit`.

@@ -11,6 +11,10 @@ public interface TransferableSelectionListAccessor {
 	@Accessor("screen")
 	PackSelectionScreen dragit$getScreen();
 
+	//? if >=1.21.4 {
+	/*@Invoker("scrollBarX")
+	*///?} else {
 	@Invoker("getScrollbarPosition")
+	//?}
 	int dragit$getScrollbarX();
 }

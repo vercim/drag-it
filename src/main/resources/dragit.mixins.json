@@ -9,6 +9,7 @@
     "PackSelectionScreenMixin",
     "PackEntryMixin",
     "ScreenMixin",
+    "accessor.AbstractScrollAreaAccessor",
     "accessor.AbstractSelectionListAccessor",
     "accessor.TransferableSelectionListAccessor",
     "accessor.PackSelectionScreenAccessor",

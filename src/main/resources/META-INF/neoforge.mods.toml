@@ -25,7 +25,7 @@ side = "CLIENT"
 [[dependencies.dragit]]
 modId = "minecraft"
 type = "required"
-versionRange = "[${minecraft_version},1.21.2)"
+versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "CLIENT"
 

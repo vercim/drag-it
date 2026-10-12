@@ -19,6 +19,7 @@
 
 ### Compatibility
 - Minecraft 1.21.1 on Fabric (Fabric Loader 0.16.4 or newer) and NeoForge (21.1.259 or newer), Java 21. Client side only.
+- Minecraft 1.21.4 on Fabric (Fabric Loader 0.16.9 or newer) and NeoForge (21.4.158 or newer), Java 21. Client side only.
 - Fabric API is not required.
 
 ### Architecture
