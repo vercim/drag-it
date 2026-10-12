@@ -3,12 +3,10 @@ package dev.vercim.dragit.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.vercim.dragit.DragItSettings;
 import dev.vercim.dragit.drag.ControllerHolder;
 import dev.vercim.dragit.drag.DragController;
 import dev.vercim.dragit.mixin.accessor.PackEntryAccessor;
 import dev.vercim.dragit.mixin.accessor.TransferableSelectionListAccessor;
-import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 import org.spongepowered.asm.mixin.Mixin;
@@ -44,7 +42,7 @@ public abstract class PackEntryMixin {
 			matrices.pushPose();
 			matrices.translate(0, dy, 0);
 		}
-		// Highlights are drawn under the row content, with vanilla's geometry (stops short of the scrollbar) and a fade.
+		// Highlights are drawn under the row content, with vanilla's geometry (stops short of the scrollbar).
 		int left = x - 2;
 		int right = DragController.highlightRight(widget);
 		int top = y - 2;
@@ -53,19 +51,11 @@ public abstract class PackEntryMixin {
 		float single = controller.selectionAlpha(widget, name);
 		if (single > 0.004F) {
 			int border = widget.isFocused() ? 0xFFFFFFFF : 0xFF808080; // vanilla's focused / unfocused frame colour
-			dragit$frame(context, left, top, right, bottom, border, 0xFF000000, single, single, single);
+			dragit$frame(context, left, top, right, bottom, border, 0xFF000000, single);
 		}
 
-		float multi = controller.multiAlpha(name);
-		if (multi > 0.004F) {
-			// Neighbouring selected rows share one outline: the edge between two rows only shows the difference of their
-			// fade levels, so it is drawn exactly once, and the outer edges appear only where a run of rows starts/ends.
-			List<TransferableSelectionList.PackEntry> rows = widget.children();
-			float prev = index > 0 ? controller.multiAlpha(rows.get(index - 1).getPackId()) : 0F;
-			float next = index + 1 < rows.size() ? controller.multiAlpha(rows.get(index + 1).getPackId()) : 0F;
-			dragit$frame(context, left, top, right, bottom, DragItSettings.MULTI_SELECT_BORDER, DragItSettings.MULTI_SELECT_FILL,
-				multi, multi - prev, multi - next);
-		}
+		// The multi-selection is one animated outline per run of rows; this row draws the slice of it that lies on it.
+		controller.drawMultiSelection(context, widget, index, left, top, right, bottom);
 		original.call(context, index, y, x, entryWidth, entryHeight, mouseX, mouseY, showHover, tickDelta);
 		if (dy != 0) {
 			matrices.popPose();
@@ -73,15 +63,13 @@ public abstract class PackEntryMixin {
 	}
 
 	@Unique
-	private static void dragit$frame(
-		GuiGraphics context, int left, int top, int right, int bottom, int border, int fill, float alpha, float topAlpha, float bottomAlpha
-	) {
+	private static void dragit$frame(GuiGraphics context, int left, int top, int right, int bottom, int border, int fill, float alpha) {
 		int edge = dragit$withAlpha(border, alpha);
 		context.fill(left, top, right, bottom, dragit$withAlpha(fill, alpha));
 		context.fill(left, top, left + 1, bottom, edge);
 		context.fill(right - 1, top, right, bottom, edge);
-		context.fill(left + 1, top, right - 1, top + 1, dragit$withAlpha(border, topAlpha));
-		context.fill(left + 1, bottom - 1, right - 1, bottom, dragit$withAlpha(border, bottomAlpha));
+		context.fill(left + 1, top, right - 1, top + 1, edge);
+		context.fill(left + 1, bottom - 1, right - 1, bottom, edge);
 	}
 
 	@Unique

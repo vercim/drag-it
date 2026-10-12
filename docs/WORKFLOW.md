@@ -118,7 +118,8 @@ On each:
 - confirm Esc cancels a drag and the screen stays open;
 - select several packs (Ctrl+click, Shift+click, Ctrl+Shift+click, Ctrl+A) and drag them as one block; send them across with Enter and with an arrow;
 - drag near a list edge and confirm auto-scroll;
-- if the profile has a pinned pack, confirm it cannot be lifted and that the red blocked marker with the "Fixed position" hint appears next to it;
+- if the profile has a pinned pack, confirm it cannot be lifted and that the red blocked marker appears next to it;
+- drag the Default pack over the available list and confirm the card and the list frame turn red, and that dropping there glides it back;
 - drop an incompatible pack into the enabled list and confirm the vanilla dialog;
 - repeat the basics on the data pack screen (create a world → Data Packs);
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
