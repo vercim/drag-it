@@ -6,6 +6,9 @@ import net.minecraft.server.packs.repository.Pack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
+//? if >=1.21.10 {
+/*import java.util.function.Consumer;
+*///?}
 
 /**
  * The organizer's own lists are the single source of truth for what "Done" applies, so the mod edits them directly.
@@ -19,9 +22,17 @@ public interface PackSelectionModelAccessor {
 	@Accessor("unselected")
 	List<Pack> dragit$getDisabledPacks();
 
-	/** Rebuilds both widget lists (vanilla's own "something changed" callback). */
+	/**
+	 * Rebuilds both widget lists (vanilla's own "something changed" callback). From 1.21.10 it takes the entry to focus
+	 * afterwards ({@code null} for none) instead of being a plain {@code Runnable}.
+	 */
+	//? if >=1.21.10 {
+	/*@Accessor("onListChanged")
+	Consumer<PackSelectionModel.EntryBase> dragit$getUpdateCallback();
+	*///?} else {
 	@Accessor("onListChanged")
 	Runnable dragit$getUpdateCallback();
+	//?}
 
 	@Invoker("updateRepoSelectedList")
 	void dragit$refreshEnabledProfiles();

@@ -12,6 +12,10 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 | `1.21.1-neoforge` | NeoForge | 21 |
 | `1.21.4-fabric` | Fabric | 21 |
 | `1.21.4-neoforge` | NeoForge | 21 |
+| `1.21.10-fabric` | Fabric | 21 |
+| `1.21.10-neoforge` | NeoForge | 21 |
+| `1.21.11-fabric` | Fabric | 21 |
+| `1.21.11-neoforge` | NeoForge | 21 |
 
 The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
 
@@ -126,6 +130,7 @@ On each:
 - drag the Default pack over the available list and confirm the card and the list frame turn red, and that dropping there glides it back;
 - drop an incompatible pack into the enabled list and confirm the vanilla dialog;
 - repeat the basics on the data pack screen (create a world → Data Packs);
+- from 1.21.10: type into the search box so that a list shows fewer packs, confirm no pack can be lifted until the search is cleared, and that the arrows and clicks still work;
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
 - confirm the mod list shows the pixel icon sharp (NeoForge: `logoBlur = false`).
 

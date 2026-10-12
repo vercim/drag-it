@@ -2,9 +2,9 @@ package dev.vercim.dragit.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.mojang.blaze3d.vertex.PoseStack;
 import dev.vercim.dragit.drag.ControllerHolder;
 import dev.vercim.dragit.drag.DragController;
+import dev.vercim.dragit.drag.GuiCompat;
 import dev.vercim.dragit.mixin.accessor.PackEntryAccessor;
 import dev.vercim.dragit.mixin.accessor.TransferableSelectionListAccessor;
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,16 +17,45 @@ public abstract class PackEntryMixin {
 	/**
 	 * Wraps the whole row render: hides the entry that is currently lifted, shifts sliding entries by their animated offset
 	 * (through the matrix stack, so sub-pixel motion is smooth) and removes vanilla's hover decoration while entries move.
+	 * Up to 1.21.1 vanilla hands the row's position to {@code render}; from 1.21.10 {@code renderContent} reads it from the entry.
 	 */
+	//? if >=1.21.10 {
+	/*@WrapMethod(method = "renderContent")
+	private void dragit$render(GuiGraphics context, int mouseX, int mouseY, boolean hovered, float tickDelta, Operation<Void> original) {
+		TransferableSelectionList.PackEntry self = (TransferableSelectionList.PackEntry) (Object) this;
+		TransferableSelectionList widget = ((PackEntryAccessor) (Object) this).dragit$getWidget();
+		dragit$draw(
+			context, widget, DragController.rowOf(widget, self), self.getContentX(), self.getContentY(), self.getContentHeight(),
+			hovered, original, new Object[]{context, mouseX, mouseY, hovered, tickDelta}, 3
+		);
+	}
+	*///?} else {
 	@WrapMethod(method = "render")
 	private void dragit$render(
 		GuiGraphics context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
 		float tickDelta, Operation<Void> original
 	) {
 		TransferableSelectionList widget = ((PackEntryAccessor) (Object) this).dragit$getWidget();
+		dragit$draw(
+			context, widget, index, x, y, entryHeight,
+			hovered, original, new Object[]{context, index, y, x, entryWidth, entryHeight, mouseX, mouseY, hovered, tickDelta}, 8
+		);
+	}
+	//?}
+
+	/**
+	 * @param x            left edge of the row's content
+	 * @param y            top edge of the row's content
+	 * @param args         arguments of the wrapped call; the {@code hovered} flag at {@code hoveredSlot} is replaced when hover is suppressed
+	 */
+	@Unique
+	private void dragit$draw(
+		GuiGraphics context, TransferableSelectionList widget, int index, int x, int y, int entryHeight, boolean hovered,
+		Operation<Void> original, Object[] args, int hoveredSlot
+	) {
 		if (DragController.isDrawingGhost()
 			|| !(((TransferableSelectionListAccessor) (Object) widget).dragit$getScreen() instanceof ControllerHolder holder)) {
-			original.call(context, index, y, x, entryWidth, entryHeight, mouseX, mouseY, hovered, tickDelta);
+			original.call(args);
 			return;
 		}
 
@@ -35,12 +64,11 @@ public abstract class PackEntryMixin {
 		if (controller.isHidden(name)) {
 			return;
 		}
-		boolean showHover = hovered && !controller.suppressHover();
+		args[hoveredSlot] = hovered && !controller.suppressHover();
 		float dy = controller.offsetFor(widget, name, index);
-		PoseStack matrices = context.pose();
 		if (dy != 0) {
-			matrices.pushPose();
-			matrices.translate(0, dy, 0);
+			GuiCompat.push(context);
+			GuiCompat.translate(context, 0, dy);
 		}
 		// Highlights are drawn under the row content, with vanilla's geometry (stops short of the scrollbar).
 		int left = x - 2;
@@ -56,9 +84,9 @@ public abstract class PackEntryMixin {
 
 		// The multi-selection is one animated outline per run of rows; this row draws the slice of it that lies on it.
 		controller.drawMultiSelection(context, widget, index, left, top, right, bottom);
-		original.call(context, index, y, x, entryWidth, entryHeight, mouseX, mouseY, showHover, tickDelta);
+		original.call(args);
 		if (dy != 0) {
-			matrices.popPose();
+			GuiCompat.pop(context);
 		}
 	}
 
