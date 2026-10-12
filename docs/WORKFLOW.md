@@ -10,8 +10,10 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 |---|---|---:|
 | `1.21.1-fabric` | Fabric | 21 |
 | `1.21.1-neoforge` | NeoForge | 21 |
+| `1.21.4-fabric` | Fabric | 21 |
+| `1.21.4-neoforge` | NeoForge | 21 |
 
-The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`.
+The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
 
 ## Requirements
 
@@ -25,7 +27,7 @@ The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). 
 Windows (PowerShell):
 
 ```powershell
-Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or 1.21.1-neoforge
+Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or any other target
 .\gradlew.bat runActiveClient
 .\gradlew.bat buildActive
 .\gradlew.bat buildAndCollect
@@ -36,7 +38,7 @@ Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or 1.21.1-neoforge
 macOS / Linux:
 
 ```bash
-printf '1.21.1-fabric' > .sc_active_version   # or 1.21.1-neoforge
+printf '1.21.1-fabric' > .sc_active_version   # or any other target
 ./gradlew runActiveClient
 ./gradlew buildActive
 ./gradlew buildAndCollect
@@ -76,7 +78,7 @@ public final class DragItNeoForge {
 *///?}
 ```
 
-Keep conditions as narrow as practical. If a whole entry point is loader-specific, keep its `package` declaration outside the conditional block so the inactive target generates a valid, otherwise empty source file. Minecraft-version differences are expressed the same way, next to the affected code (`//? if >=1.21.2 { … //?} else { /* … *///?}`). Never copy files per version.
+Keep conditions as narrow as practical. If a whole entry point is loader-specific, keep its `package` declaration outside the conditional block so the inactive target generates a valid, otherwise empty source file. Minecraft-version differences are expressed the same way, next to the affected code (`//? if >=1.21.4 { … //?} else { /* … *///?}`; `ListGeometry.scrollAmount` is a small real example). Never copy files per version.
 
 ## CI
 

@@ -16,11 +16,12 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 ## Current state
 
 - Version `0.0.1-alpha`, the first pre-release (not yet published).
-- Targets: `1.21.1-fabric`, `1.21.1-neoforge`, declared once in `settings.gradle.kts`.
+- Targets: `1.21.1-fabric`, `1.21.1-neoforge`, `1.21.4-fabric`, `1.21.4-neoforge`, declared once in `settings.gradle.kts`. Values that differ per target (`fabric_loader_min_version`, `neoforge_version`, `minecraft_version_range`) live in `versions/<target>/gradle.properties`; the rest is in the root `gradle.properties`.
+- The 1.21.4 port is in progress on `feature/expand-supported-versions` (compiles, `verifyJar` passes, Mixin audit clean on both loaders; the packaged-JAR gesture test is still open, see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
 - `vcsVersion = 1.21.1-fabric`: commit with `.sc_active_version` set to `1.21.1-fabric`.
 - Mod id is `dragit` on both loaders. NeoForge only accepts `[a-z][a-z0-9_]{1,63}`, so a hyphenated id such as `drag-it` is invalid there. The repository, README links, and platform slugs keep `drag-it`.
 - No Fabric API and no other libraries. MixinExtras comes with both loaders; the Mixin API is on both classpaths.
-- Metadata pins Minecraft to exactly `1.21.1`.
+- Metadata pins Minecraft to exactly the target's version (one release, e.g. `[1.21.4,1.21.5)` on NeoForge); a JAR never claims a version it was not built and tested against.
 
 ## Rules that must not be forgotten
 
@@ -52,7 +53,7 @@ src/main/java/dev/vercim/dragit/
     PackEntryMixin.java            — @WrapMethod render: hides the lifted row, slides rows, draws the selection highlights
     TransferableSelectionListMixin.java — @WrapMethod renderSelection: skips vanilla's instant frame
     accessor/                      — accessors for PackSelectionScreen, PackSelectionModel, TransferableSelectionList,
-                                     AbstractSelectionList, PackEntry
+                                     AbstractSelectionList, AbstractScrollArea (scrollbar), PackEntry
   neoforge/DragItNeoForge.java     — the @Mod class javafml requires; empty, the mod works through Mixin only
 src/main/resources/
   fabric.mod.json, META-INF/neoforge.mods.toml, dragit.mixins.json, icon.png
@@ -86,7 +87,8 @@ DRAGGING --release / Esc--> SETTLING (the lifted card glides into its slot) --ar
 
 - `PackSelectionScreen` does not declare `render` or `keyPressed`, and Mixin cannot inject into inherited methods, so those hooks live on `Screen` and return immediately for anything that is not a `PackSelectionScreen`.
 - `MouseHandlerMixin` is the only place that can hold a press back from vanilla; a plain click is replayed to vanilla on release so the arrows keep working.
-- Private members of vanilla classes are reached through `@Accessor` / `@Invoker` interfaces in `mixin/accessor/`; names are prefixed `dragit$`.
+- Private members of vanilla classes are reached through `@Accessor` / `@Invoker` interfaces in `mixin/accessor/`; names are prefixed `dragit$`. An accessor only finds members the target class declares itself, not inherited ones, so when a member moves to a superclass in a new version the `@Mixin` target changes with it (see `AbstractScrollAreaAccessor`).
+- Vanilla calls whose names differ between versions are wrapped in one helper (for example `ListGeometry.scrollAmount` / `clampScroll`) with a narrow Stonecutter condition, so the rest of the code stays version-free.
 - Target strings use Mojang names. NeoForge applies them as they are; Fabric's Loom remaps them into the mixin classes at build time (the JAR has no refmap). A renamed method in a new Minecraft version fails at runtime, not at compile time.
 - `Window.getWidth()` / `getHeight()` are the *framebuffer* size in Mojang names. Window pixels, which the mouse position is in, are `getScreenWidth()` / `getScreenHeight()`.
 - Add every new mixin class to `dragit.mixins.json`; `verifyJar` fails the build if a listed class is missing from the JAR.

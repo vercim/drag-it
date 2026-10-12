@@ -609,8 +609,8 @@ public final class DragController {
 			keepRelativeOrder(profiles(SELECTED), moved);
 		}
 		organizer().dragit$refreshEnabledProfiles();
-		list(AVAILABLE).clampScrollAmount();
-		list(SELECTED).clampScrollAmount();
+		ListGeometry.clampScroll(list(AVAILABLE));
+		ListGeometry.clampScroll(list(SELECTED));
 		followToList(moved, to);
 	}
 
@@ -842,7 +842,7 @@ public final class DragController {
 				speed = Math.min(1.5, (pointerY - (list.getBottom() - edge)) / edge);
 			}
 			if (speed != 0) {
-				list.setScrollAmount(list.getScrollAmount() + speed * DragItSettings.AUTOSCROLL_MAX_SPEED * dt);
+				list.setScrollAmount(ListGeometry.scrollAmount(list) + speed * DragItSettings.AUTOSCROLL_MAX_SPEED * dt);
 			}
 		}
 	}
@@ -950,8 +950,8 @@ public final class DragController {
 		settleList = outcome == Outcome.APPLIED ? result.list() : srcList;
 		phase = Phase.SETTLING;
 		if (outcome == Outcome.APPLIED) {
-			list(AVAILABLE).clampScrollAmount();
-			list(SELECTED).clampScrollAmount();
+			ListGeometry.clampScroll(list(AVAILABLE));
+			ListGeometry.clampScroll(list(SELECTED));
 		}
 	}
 
@@ -1032,8 +1032,8 @@ public final class DragController {
 			client.setScreen(screen);
 			if (confirmed) {
 				crossList(List.of(pack), List.of(profile), SELECTED, gap);
-				list(AVAILABLE).clampScrollAmount();
-				list(SELECTED).clampScrollAmount();
+				ListGeometry.clampScroll(list(AVAILABLE));
+				ListGeometry.clampScroll(list(SELECTED));
 			}
 		}, Component.translatable("pack.incompatible.confirm.title"), message));
 	}

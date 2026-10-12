@@ -54,6 +54,7 @@ tasks.processResources {
     val metadata = mapOf(
         "version" to project.version,
         "minecraft_version" to minecraftVersion,
+        "minecraft_version_range" to project.property("minecraft_version_range"),
         "neoforge_version" to project.property("neoforge_version"),
         "neoforge_loader_version_range" to project.property("neoforge_loader_version_range")
     )

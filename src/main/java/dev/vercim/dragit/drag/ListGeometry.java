@@ -1,5 +1,6 @@
 package dev.vercim.dragit.drag;
 
+import dev.vercim.dragit.mixin.accessor.AbstractScrollAreaAccessor;
 import dev.vercim.dragit.mixin.accessor.AbstractSelectionListAccessor;
 import dev.vercim.dragit.mixin.accessor.PackEntryAccessor;
 import dev.vercim.dragit.mixin.accessor.TransferableSelectionListAccessor;
@@ -23,7 +24,25 @@ final class ListGeometry {
 	}
 
 	static boolean scrollbarVisible(TransferableSelectionList list) {
-		return ((AbstractSelectionListAccessor) (Object) list).dragit$isScrollbarVisible();
+		return ((AbstractScrollAreaAccessor) (Object) list).dragit$isScrollbarVisible();
+	}
+
+	/** Current scroll offset in pixels. */
+	static double scrollAmount(TransferableSelectionList list) {
+		//? if >=1.21.4 {
+		/*return list.scrollAmount();
+		*///?} else {
+		return list.getScrollAmount();
+		//?}
+	}
+
+	/** Re-applies the scroll limits after the content height changed. */
+	static void clampScroll(TransferableSelectionList list) {
+		//? if >=1.21.4 {
+		/*list.refreshScrollAmount();
+		*///?} else {
+		list.clampScrollAmount();
+		//?}
 	}
 
 	static int scrollbarX(TransferableSelectionList list) {
@@ -37,7 +56,7 @@ final class ListGeometry {
 
 	/** Screen Y of the top of row 0 (same formula as vanilla's {@code getRowTop(0)}). */
 	static int originY(TransferableSelectionList list) {
-		return list.getY() + 4 - (int) list.getScrollAmount() + headerHeight(list);
+		return list.getY() + 4 - (int) scrollAmount(list) + headerHeight(list);
 	}
 
 	static int rowTop(TransferableSelectionList list, int index) {
@@ -61,7 +80,7 @@ final class ListGeometry {
 	static int hit(TransferableSelectionList list, double x, double y) {
 		int half = list.getRowWidth() / 2;
 		int center = list.getX() + list.getWidth() / 2;
-		int m = Mth.floor(y - list.getY()) - headerHeight(list) + (int) list.getScrollAmount() - 4;
+		int m = Mth.floor(y - list.getY()) - headerHeight(list) + (int) scrollAmount(list) - 4;
 		int n = m / itemHeight(list);
 		return x >= center - half && x <= center + half && m >= 0 && n >= 0 && n < list.children().size() ? n : -1;
 	}
