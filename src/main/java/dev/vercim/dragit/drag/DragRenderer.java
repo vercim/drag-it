@@ -1,6 +1,5 @@
 package dev.vercim.dragit.drag;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import dev.vercim.dragit.DragItSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -31,9 +30,9 @@ final class DragRenderer {
 		int color = blocked ? DragItSettings.BLOCKED_COLOR : DragItSettings.INDICATOR_COLOR;
 		double a = indicator.alpha;
 
-		int right = ListGeometry.cardRight(list);
+		int right = ListGeometry.frameRight(list);
 		context.enableScissor(list.getX(), list.getY(), right, list.getBottom());
-		int x = list.getRowLeft() - 2;
+		int x = ListGeometry.cellLeft(list);
 		int width = ListGeometry.cardWidth(list);
 		int top = (int) Math.round(ListGeometry.originY(list) + indicator.y);
 		if (indicator.block == DropTarget.Block.PINNED) {
@@ -41,12 +40,12 @@ final class DragRenderer {
 		} else if (!blocked) {
 			int height = ListGeometry.entryHeight(list);
 			context.fill(x, top - 2, x + width, top + height + 2, scale(color, 0.16 * a));
-			context.renderOutline(x, top - 2, width, height + 4, scale(color, 0.85 * a));
+			GuiCompat.outline(context, x, top - 2, width, height + 4, scale(color, 0.85 * a));
 		}
 		context.disableScissor();
 
 		// Frame around the list that would receive the pack (the scrollbar stays outside of it).
-		context.renderOutline(list.getX(), list.getY(), right - list.getX(), list.getHeight(), scale(color, 0.55 * a));
+		GuiCompat.outline(context, list.getX(), list.getY(), right - list.getX(), list.getHeight(), scale(color, 0.55 * a));
 	}
 
 	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
@@ -66,16 +65,15 @@ final class DragRenderer {
 		float fy = (float) (c.ghostY - iy);
 		float lift = (float) Math.max(0, Math.min(1, c.lift));
 
-		PoseStack matrices = context.pose();
-		matrices.pushPose();
-		matrices.translate(0, 0, 200);
+		GuiCompat.push(context);
+		GuiCompat.raise(context);
 		float scale = 1.0F + (DragItSettings.GHOST_SCALE - 1.0F) * lift;
 		float pivotX = (float) (c.ghostX - 2 + width / 2.0);
 		float pivotY = (float) (c.ghostY + height / 2.0);
-		matrices.translate(pivotX, pivotY, 0);
-		matrices.scale(scale, scale, 1);
-		matrices.translate(-pivotX, -pivotY, 0);
-		matrices.translate(fx, fy, 0);
+		GuiCompat.translate(context, pivotX, pivotY);
+		GuiCompat.scale(context, scale, scale);
+		GuiCompat.translate(context, -pivotX, -pivotY);
+		GuiCompat.translate(context, fx, fy);
 
 		int left = ix - 2;
 		int right = left + width;
@@ -84,7 +82,7 @@ final class DragRenderer {
 			// A dragged selection is shown as a small stack of cards under the one the cursor holds.
 			int o = Math.round(layer * 4 * lift);
 			context.fill(left + o, iy - 2 + o, right + o, iy + height + 2 + o, DragItSettings.GHOST_BACKGROUND);
-			context.renderOutline(left + o, iy - 2 + o, width, height + 4, scale(DragItSettings.INDICATOR_COLOR, 0.35 + 0.35 * lift));
+			GuiCompat.outline(context, left + o, iy - 2 + o, width, height + 4, scale(DragItSettings.INDICATOR_COLOR, 0.35 + 0.35 * lift));
 		}
 		for (int i = 5; i >= 1; i--) {
 			int alpha = (int) (lift * 22);
@@ -93,11 +91,11 @@ final class DragRenderer {
 		int accent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, c.blockedMix);
 		int background = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, c.blockedMix);
 		context.fill(left, iy - 2, right, iy + height + 2, background);
-		context.renderOutline(left, iy - 2, width, height + 4, scale(accent, 0.35 + 0.55 * lift));
+		GuiCompat.outline(context, left, iy - 2, width, height + 4, scale(accent, 0.35 + 0.55 * lift));
 
 		DragController.setDrawingGhost(true);
 		try {
-			entry.render(context, row, iy, ix, list.getRowWidth(), height, -1000, -1000, false, delta);
+			GuiCompat.drawEntry(context, entry, row, ix, iy, list.getRowWidth(), height, delta);
 		} finally {
 			DragController.setDrawingGhost(false);
 		}
@@ -111,7 +109,7 @@ final class DragRenderer {
 			context.fill(bx, by, bx + badgeWidth, by + 12, scale(DragItSettings.INDICATOR_COLOR, lift));
 			context.drawString(font, label, bx + 4, by + 2, 0xFFFFFFFF, false);
 		}
-		matrices.popPose();
+		GuiCompat.pop(context);
 	}
 
 	/**

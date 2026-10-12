@@ -54,6 +54,11 @@ public final class DragController {
 		drawingGhost = value;
 	}
 
+	/** Row of a pack entry among the pack rows of its list (a title row, where the list has one, is not counted). */
+	public static int rowOf(TransferableSelectionList widget, TransferableSelectionList.PackEntry entry) {
+		return ListGeometry.entries(widget).indexOf(entry);
+	}
+
 	public static DragController of(PackSelectionScreen screen) {
 		return ((ControllerHolder) screen).dragit$getController();
 	}
@@ -170,6 +175,28 @@ public final class DragController {
 		return list == AVAILABLE ? organizer().dragit$getDisabledPacks() : organizer().dragit$getEnabledPacks();
 	}
 
+	/** Vanilla's "the model changed" callback: rebuilds both widget lists from the organizer's lists. */
+	private void refreshLists() {
+		//? if >=1.21.10 {
+		/*organizer().dragit$getUpdateCallback().accept(null);
+		*///?} else {
+		organizer().dragit$getUpdateCallback().run();
+		//?}
+	}
+
+	/**
+	 * From 1.21.10 the screen has a search box that hides the packs that do not match. A list that shows fewer packs than the
+	 * model holds no longer lines up with the model's order, so no pack is lifted until the filter is cleared.
+	 */
+	private boolean filtered() {
+		for (int i = 0; i < 2; i++) {
+			if (ListGeometry.entries(list(i)).size() != profiles(i).size()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private Pack findProfile(String id) {
 		for (int i = 0; i < 2; i++) {
 			for (Pack profile : profiles(i)) {
@@ -257,15 +284,15 @@ public final class DragController {
 			String clicked = packId;
 			packId = null;
 			if (isMultiMember(srcList, clicked)) {
-				if (onEnableDisableArrow(srcList, clicked, pressX)) {
+				if (onEnableDisableArrow(srcList, clicked, pressX, pressY)) {
 					moveSelection(); // the arrow of a selected pack acts on the whole selection
 					return true;
 				}
 				clearMulti(); // Explorer: a click on a selected item collapses the selection to that item
 				multiAnchor = clicked;
 			}
-			screen.mouseClicked(pressX, pressY, GLFW.GLFW_MOUSE_BUTTON_LEFT);
-			screen.mouseReleased(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+			GuiCompat.click(screen, pressX, pressY);
+			GuiCompat.release(screen, x, y);
 			return true;
 		}
 		if (phase == Phase.DRAGGING) {
@@ -318,6 +345,9 @@ public final class DragController {
 	}
 
 	private Grab findGrabbable(double x, double y) {
+		if (filtered()) {
+			return null; // vanilla keeps handling clicks, arrows and the keyboard
+		}
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
 			if (!list.isMouseOver(x, y)) {
@@ -330,7 +360,7 @@ public final class DragController {
 			if (index < 0) {
 				return null;
 			}
-			TransferableSelectionList.PackEntry entry = list.children().get(index);
+			TransferableSelectionList.PackEntry entry = ListGeometry.entries(list).get(index);
 			PackSelectionModel.Entry pack = ListGeometry.packOf(entry);
 			if (pack.isFixedPosition()) {
 				return null; // pinned packs are never lifted
@@ -373,7 +403,7 @@ public final class DragController {
 		boolean[] fresh = new boolean[2];
 		String[] now = new String[2];
 		for (int i = 0; i < 2; i++) {
-			TransferableSelectionList.PackEntry entry = list(i).getSelected();
+			TransferableSelectionList.PackEntry entry = ListGeometry.selected(list(i));
 			now[i] = entry == null ? null : entry.getPackId();
 			fresh[i] = now[i] != null && !now[i].equals(lastSelected[i]);
 		}
@@ -404,7 +434,7 @@ public final class DragController {
 		bandSeed = null;
 		Set<String> selected = new HashSet<>();
 		for (int i = 0; i < 2; i++) {
-			TransferableSelectionList.PackEntry entry = list(i).getSelected();
+			TransferableSelectionList.PackEntry entry = ListGeometry.selected(list(i));
 			if (entry != null) {
 				selected.add(i + entry.getPackId());
 			}
@@ -460,7 +490,7 @@ public final class DragController {
 		int id = grab.list();
 		TransferableSelectionList list = list(id);
 		String name = grab.name();
-		TransferableSelectionList.PackEntry vanilla = list.getSelected();
+		TransferableSelectionList.PackEntry vanilla = ListGeometry.selected(list);
 		boolean seed = vanilla != null && !isFixed(vanilla);
 		if (multiList != id) {
 			multi.clear();
@@ -481,7 +511,7 @@ public final class DragController {
 			int a = ListGeometry.indexOf(list, anchor);
 			int b = ListGeometry.indexOf(list, name);
 			for (int i = Math.min(a, b); i <= Math.max(a, b); i++) {
-				TransferableSelectionList.PackEntry entry = list.children().get(i);
+				TransferableSelectionList.PackEntry entry = ListGeometry.entries(list).get(i);
 				if (!isFixed(entry)) {
 					multi.add(entry.getPackId());
 				}
@@ -498,7 +528,7 @@ public final class DragController {
 		if (multi.isEmpty()) {
 			multiList = -1;
 		}
-		screen.clearSelected(); // the multi-selection replaces vanilla's single highlight
+		clearVanillaSelection(); // the multi-selection replaces vanilla's single highlight
 	}
 
 	/** Ctrl+A: selects every movable pack of the list under the cursor (else of the list that already holds the selection). */
@@ -517,7 +547,7 @@ public final class DragController {
 		}
 		multi.clear();
 		multiList = id;
-		for (TransferableSelectionList.PackEntry entry : list(id).children()) {
+		for (TransferableSelectionList.PackEntry entry : ListGeometry.entries(list(id))) {
 			if (!isFixed(entry)) {
 				multi.add(entry.getPackId());
 			}
@@ -526,7 +556,7 @@ public final class DragController {
 			multiList = -1;
 		}
 		bandSeed = null;
-		screen.clearSelected();
+		clearVanillaSelection();
 		return true;
 	}
 
@@ -555,16 +585,17 @@ public final class DragController {
 		return false;
 	}
 
-	/** True when a plain click at {@code x} would hit the enable/disable arrow of this pack (vanilla's own hit zones). */
-	private boolean onEnableDisableArrow(int listId, String name, double x) {
-		TransferableSelectionList list = list(listId);
-		TransferableSelectionList.PackEntry entry = ListGeometry.find(list, name);
-		if (entry == null) {
-			return false;
+	/** True when a plain click at {@code x, y} would hit the enable/disable arrow of this pack (vanilla's own hit zones). */
+	private boolean onEnableDisableArrow(int listId, String name, double x, double y) {
+		TransferableSelectionList.PackEntry entry = ListGeometry.find(list(listId), name);
+		return entry != null && ListGeometry.onToggleArrow(list(listId), entry, x, y);
+	}
+
+	/** Clears vanilla's single selection of both lists (the multi-selection replaces it, and a lifted pack has none). */
+	private void clearVanillaSelection() {
+		for (int i = 0; i < 2; i++) {
+			list(i).setSelected(null);
 		}
-		double d = x - list.getRowLeft();
-		PackSelectionModel.Entry pack = ListGeometry.packOf(entry);
-		return d <= 32.0 && (pack.canSelect() || (d < 16.0 && pack.canUnselect()));
 	}
 
 	private void moveSelection() {
@@ -582,7 +613,7 @@ public final class DragController {
 
 		List<PackSelectionModel.Entry> packs = new ArrayList<>();
 		List<Pack> moved = new ArrayList<>();
-		for (TransferableSelectionList.PackEntry entry : list(from).children()) {
+		for (TransferableSelectionList.PackEntry entry : ListGeometry.entries(list(from))) {
 			if (!names.contains(entry.getPackId())) {
 				continue;
 			}
@@ -650,7 +681,7 @@ public final class DragController {
 			}
 		}
 		if (changed) {
-			organizer().dragit$getUpdateCallback().run();
+			refreshLists();
 		}
 	}
 
@@ -722,7 +753,7 @@ public final class DragController {
 	}
 
 	private static boolean leftButtonHeld() {
-		return GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+		return GLFW.glfwGetMouseButton(GuiCompat.handle(Minecraft.getInstance().getWindow()), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 	}
 
 	private double thresholdGui() {
@@ -746,7 +777,7 @@ public final class DragController {
 		boolean group = isMultiMember(srcList, packId);
 		dragIds.clear();
 		dragProfiles.clear();
-		for (TransferableSelectionList.PackEntry entry : source.children()) {
+		for (TransferableSelectionList.PackEntry entry : ListGeometry.entries(source)) {
 			String name = entry.getPackId();
 			Pack profile = name.equals(packId) || (group && multi.contains(name)) ? findProfile(name) : null;
 			if (profile != null) {
@@ -758,7 +789,7 @@ public final class DragController {
 			reset();
 			return;
 		}
-		double entryX = source.getRowLeft();
+		double entryX = ListGeometry.contentLeft(source);
 		double entryY = ListGeometry.rowTop(source, index) + animator.offset(srcList, packId, index, ListGeometry.itemHeight(source));
 		grabDX = pressX - entryX;
 		grabDY = pressY - entryY;
@@ -767,13 +798,13 @@ public final class DragController {
 		lift = 0;
 		blockedMix = 0;
 		phase = Phase.DRAGGING;
-		screen.clearSelected();
+		clearVanillaSelection();
 		tickDragging();
 	}
 
 	private void tickDragging() {
 		Pack profile = findProfile(packId);
-		boolean intact = profile != null;
+		boolean intact = profile != null && !filtered();
 		for (String id : dragIds) {
 			intact &= ListGeometry.indexOf(list(srcList), id) >= 0;
 		}
@@ -854,7 +885,7 @@ public final class DragController {
 			finishSettle();
 			return;
 		}
-		ghostTX = list.getRowLeft();
+		ghostTX = ListGeometry.contentLeft(list);
 		ghostTY = ListGeometry.rowTop(list, index);
 		double glide = 1.0 - Math.exp(-dt * DragItSettings.SETTLE_RATE);
 		ghostX += (ghostTX - ghostX) * glide;
@@ -884,7 +915,7 @@ public final class DragController {
 		blockedMix += ((phase == Phase.DRAGGING && drop.blocked() ? 1.0 : 0.0) - blockedMix) * indicatorBlend;
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
-			List<TransferableSelectionList.PackEntry> children = list.children();
+			List<TransferableSelectionList.PackEntry> children = ListGeometry.entries(list);
 			int n = children.size();
 			int itemHeight = ListGeometry.itemHeight(list);
 			boolean dragging = phase == Phase.DRAGGING;
@@ -971,7 +1002,7 @@ public final class DragController {
 			if (profiles.equals(before)) {
 				return Outcome.UNCHANGED;
 			}
-			organizer().dragit$getUpdateCallback().run();
+			refreshLists();
 			return Outcome.APPLIED;
 		}
 
@@ -1016,7 +1047,7 @@ public final class DragController {
 		profiles.removeAll(moved);
 		profiles.addAll(Math.min(gap, profiles.size()), moved);
 		if (!profiles.equals(before)) {
-			organizer().dragit$getUpdateCallback().run();
+			refreshLists();
 		}
 		organizer().dragit$refreshEnabledProfiles();
 		if (!multi.isEmpty()) {

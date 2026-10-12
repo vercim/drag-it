@@ -4,8 +4,12 @@ import dev.vercim.dragit.drag.DragController;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+//? if >=1.21.10 {
+/*import net.minecraft.client.input.KeyEvent;
+*///?}
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -31,8 +35,20 @@ public abstract class ScreenMixin {
 		}
 	}
 
+	//? if >=1.21.10 {
+	/*@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+	private void dragit$onKey(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+		dragit$handleKey(event.key(), event.modifiers(), cir);
+	}
+	*///?} else {
 	@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
 	private void dragit$onKey(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+		dragit$handleKey(keyCode, modifiers, cir);
+	}
+	//?}
+
+	@Unique
+	private void dragit$handleKey(int keyCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
 		if (!((Object) this instanceof PackSelectionScreen screen)) {
 			return;
 		}

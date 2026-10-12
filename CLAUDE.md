@@ -16,8 +16,8 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 ## Current state
 
 - Version `0.0.1-alpha` is published (tag `v0.0.1-alpha`, GitHub pre-release, 2026-10-11). Later work collects under `## [Unreleased]` in `CHANGELOG.md`; `mod_version` is bumped, and that section renamed, at the next release. Never edit a published version's section.
-- Targets: `1.21.1-fabric`, `1.21.1-neoforge`, `1.21.4-fabric`, `1.21.4-neoforge`, declared once in `settings.gradle.kts`. Values that differ per target (`fabric_loader_min_version`, `neoforge_version`, `minecraft_version_range`) live in `versions/<target>/gradle.properties`; the rest is in the root `gradle.properties`.
-- The 1.21.4 port is in progress on `feature/expand-supported-versions` (compiles, `verifyJar` passes, Mixin audit clean on both loaders; the packaged-JAR gesture test is still open, see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
+- Targets: `1.21.1`, `1.21.4`, `1.21.10`, `1.21.11`, each as `<version>-fabric` and `<version>-neoforge`, declared once in `settings.gradle.kts`. Values that differ per target (`fabric_loader_min_version`, `neoforge_version`, `minecraft_version_range`) live in `versions/<target>/gradle.properties`; the rest is in the root `gradle.properties`.
+- The 1.21.4, 1.21.10 and 1.21.11 ports are in progress on `feature/expand-supported-versions` (they compile, `verifyJar` passes, the Mixin audit and a scripted gesture test on the dev clients are clean on both loaders; the manual packaged-JAR gesture test is still open, see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)). 1.21.5-1.21.9 were skipped.
 
 - Mod id is `dragit` on both loaders. NeoForge only accepts `[a-z][a-z0-9_]{1,63}`, so a hyphenated id such as `drag-it` is invalid there. The repository, README links, and platform slugs keep `drag-it`.
 - No Fabric API and no other libraries. MixinExtras comes with both loaders; the Mixin API is on both classpaths.
@@ -44,14 +44,15 @@ src/main/java/dev/vercim/dragit/
     DropTarget.java                — works out which list and which gap a drop lands in; pinned-pack zones
     EntryAnimator.java             — smooth per-pack vertical offsets that survive vanilla rebuilding the rows
     SelectionBands.java            — the multi-selection outline: one animated band per run of selected rows, tied to its packs
-    ListGeometry.java              — row geometry of vanilla's TransferableSelectionList, recomputed from live state
+    ListGeometry.java              — row geometry of vanilla's TransferableSelectionList, recomputed from live state; counts pack rows only (the title row of 1.21.10+ is left out)
+    GuiCompat.java                 — drawing, input and window calls whose shape differs between Minecraft versions (matrix stack, outline, replaying a click, window handle)
     ControllerHolder.java          — implemented by PackSelectionScreen (via mixin): one DragController per screen
   mixin/                           — one mixin per vanilla class it targets, named after that class
     MouseHandlerMixin.java         — MouseHandler.onPress HEAD: sees every press and release, can hold a press back
     ScreenMixin.java               — Screen.render HEAD/TAIL and Screen.keyPressed HEAD, no-ops for non-pack screens
     PackSelectionScreenMixin.java  — owns the controller; cancels the gesture on re-layout and close
     PackEntryMixin.java            — @WrapMethod render: hides the lifted row, slides rows, draws the selection highlights
-    TransferableSelectionListMixin.java — @WrapMethod renderSelection: skips vanilla's instant frame
+    TransferableSelectionListMixin.java — renderSelection: skips vanilla's instant frame (targets AbstractSelectionList from 1.21.10)
     accessor/                      — accessors for PackSelectionScreen, PackSelectionModel, TransferableSelectionList,
                                      AbstractSelectionList, AbstractScrollArea (scrollbar), PackEntry
   neoforge/DragItNeoForge.java     — the @Mod class javafml requires; empty, the mod works through Mixin only
@@ -88,7 +89,9 @@ DRAGGING --release / Esc--> SETTLING (the lifted card glides into its slot) --ar
 - `PackSelectionScreen` does not declare `render` or `keyPressed`, and Mixin cannot inject into inherited methods, so those hooks live on `Screen` and return immediately for anything that is not a `PackSelectionScreen`.
 - `MouseHandlerMixin` is the only place that can hold a press back from vanilla; a plain click is replayed to vanilla on release so the arrows keep working.
 - Private members of vanilla classes are reached through `@Accessor` / `@Invoker` interfaces in `mixin/accessor/`; names are prefixed `dragit$`. An accessor only finds members the target class declares itself, not inherited ones, so when a member moves to a superclass in a new version the `@Mixin` target changes with it (see `AbstractScrollAreaAccessor`).
-- Vanilla calls whose names differ between versions are wrapped in one helper (for example `ListGeometry.scrollAmount` / `clampScroll`) with a narrow Stonecutter condition, so the rest of the code stays version-free.
+- Vanilla calls whose names differ between versions are wrapped in one helper (for example `ListGeometry.scrollAmount` / `clampScroll`) with a narrow Stonecutter condition, so the rest of the code stays version-free. Drawing and input differences live in `GuiCompat`; the mixins that must differ per version (`PackEntryMixin`, `MouseHandlerMixin`, `ScreenMixin`) keep one version-neutral method and put only the hook signature under the condition.
+- A `@WrapMethod` handler must repeat the target's erased parameter types exactly, and a mixin cannot extend its own target. When a parameter is a class the mixin cannot name (for example the protected `AbstractSelectionList.Entry`), use an `@Inject` without arguments instead (`TransferableSelectionListMixin`).
+- From 1.21.10 the pack screen has a search box and a list can show fewer packs than the model holds; `DragController.filtered` then refuses to lift anything, because gap indices would no longer match the model's order.
 - Target strings use Mojang names. NeoForge applies them as they are; Fabric's Loom remaps them into the mixin classes at build time (the JAR has no refmap). A renamed method in a new Minecraft version fails at runtime, not at compile time.
 - `Window.getWidth()` / `getHeight()` are the *framebuffer* size in Mojang names. Window pixels, which the mouse position is in, are `getScreenWidth()` / `getScreenHeight()`.
 - Add every new mixin class to `dragit.mixins.json`; `verifyJar` fails the build if a listed class is missing from the JAR.
