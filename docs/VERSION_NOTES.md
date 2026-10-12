@@ -72,7 +72,7 @@ For each new version, after adding the target:
 - [ ] `TransferableSelectionList` and `PackEntry`: the `render` signature, `renderSelection`, the `screen`, `pack`, and `parent` fields, `getScrollbarPosition`, `getPackId`.
 - [ ] `AbstractSelectionList`: `itemHeight`, `headerHeight`, `scrollbarVisible()`, and the scroll API used by auto-scroll (`getScrollAmount`, `setScrollAmount`, `clampScrollAmount`).
 - [ ] `MouseHandler.onPress` signature and the `minecraft` / `xpos` / `ypos` fields; `Screen.render` and `Screen.keyPressed` signatures.
-- [ ] `Window` size methods (`getScreenWidth` vs. `getWidth`), `GuiGraphics` drawing calls (`fill`, scissor, `pose()` type: `PoseStack` vs. a 2D stack), `Component.translatableWithFallback`.
+- [ ] `Window` size methods (`getScreenWidth` vs. `getWidth`), `GuiGraphics` drawing calls (`fill`, scissor, `pose()` type: `PoseStack` vs. a 2D stack).
 - [ ] Express differences with narrow Stonecutter conditions, not copied files.
 - [ ] Mixin config registered for both loaders in the packaged JAR (`verifyJar` passes).
 - [ ] Run the [Mixin audit](#mixin-audit) on both loaders, then the whole packaged-JAR checklist, including the data pack screen.
@@ -131,7 +131,7 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 | `PackSelectionModel` | Fields `selected`, `unselected` (`List<Pack>`), `onListChanged` (`Runnable`, rebuilds both widget lists); invoker `updateRepoSelectedList()`. Vanilla has no "insert at index", so the mod edits the lists directly |
 | `PackSelectionModel.Entry` | `isFixedPosition()`, `canSelect()`, `canUnselect()`, `select()`, `unselect()`, `getCompatibility()` |
 | `Pack` (`server.packs.repository`) | `getId()`, `isFixedPosition()`, `isRequired()`, `getCompatibility()`, `getDefaultPosition()` (its `insert(...)` takes `Pack::selectionConfig`) |
-| `Minecraft` / `Window` | `font`, `mouseHandler`, `screen`, `options.languageCode`, `getWindow()`. Window pixels: `getScreenWidth()` / `getScreenHeight()`; GUI-scaled: `getGuiScaledWidth()` / `getGuiScaledHeight()`; `getGuiScale()`; `getWindow()` is the GLFW handle |
+| `Minecraft` / `Window` | `font`, `mouseHandler`, `screen`, `getWindow()`. Window pixels: `getScreenWidth()` / `getScreenHeight()`; GUI-scaled: `getGuiScaledWidth()` / `getGuiScaledHeight()`; `getGuiScale()`; `getWindow()` is the GLFW handle |
 | `GuiGraphics` | `fill`, `enableScissor` / `disableScissor`, `drawString`, `renderOutline`; `pose()` is a `PoseStack` (`pushPose()` / `popPose()`, 3D `translate`) |
 | Drop confirmation | `ConfirmScreen` with `Component.translatable("pack.incompatible.confirm.title")` and `getCompatibility().getConfirmation()` |
 
@@ -143,8 +143,8 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 #### Quirks
 - NeoForge mod ids match `[a-z][a-z0-9_]{1,63}`; the prototype's `drag-it` is invalid there, hence `dragit`.
 - Yarn `Window.getWidth()` / `getHeight()` (window pixels) became Mojang `getScreenWidth()` / `getScreenHeight()`, while Mojang `getWidth()` / `getHeight()` is the framebuffer size. The old names still compile, so a mechanical rename silently gives wrong pointer coordinates under HiDPI scaling.
-- On Fabric the mod's lang files are only loaded when Fabric API is present, so `DragRenderer` uses `Component.translatableWithFallback` and picks the fallback text from the selected language. Test the Fabric JAR both with and without Fabric API.
-- The built-in Default pack is *required* but not *fixed-position* in 1.21.1: it can be re-ordered like any pack and never disabled. Only fixed-position (pinned) packs block drops.
+- The mod draws no text, so it has no lang files. On Fabric a mod's lang files are only loaded when Fabric API is present: any text added later needs `Component.translatableWithFallback` and a test of the Fabric JAR both with and without Fabric API.
+- The built-in Default pack is *required* but not *fixed-position* in 1.21.1: it can be re-ordered like any pack and never disabled. Only fixed-position (pinned) packs block drops across them; a required pack is refused as a target only by the available list (shown red, `DropTarget.Block.REQUIRED`). `PackSelectionModel.Entry.canUnselect()` is `isSelected() && !isRequired()` in 1.21.1: there is no "last enabled pack" rule. In vanilla 1.21.1 the only fixed-position pack is the server's resource pack (`DownloadedPackSource`: required, `TOP`, fixed); Default (`ClientPackSource`) is required and `BOTTOM` but not fixed, and the built-in (High Contrast, Programmer Art) and folder packs are neither. A mod can register a fixed pack too.
 - Vanilla re-sorts the available list when the screen reopens, so only the enabled order persists.
 - The icon is 16×16 pixel art. NeoForge sets `logoBlur = false` in the descriptor; Mod Menu has no metadata option for icon filtering.
 

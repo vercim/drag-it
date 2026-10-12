@@ -9,13 +9,13 @@
 - A plain click behaves exactly like vanilla: the arrows enable, disable, and move packs, and a click selects.
 - Multi-selection like in a file manager: Ctrl+click toggles a pack, Shift+click selects a range, Ctrl+Shift+click adds a range, and Ctrl+A selects every movable pack of a list.
 - Dragging a selected pack lifts the whole selection as one block and keeps its inner order.
-- Enter, Space, or the arrow of any selected pack sends the whole selection to the other list; pressing it again brings the selection back.
-- Pinned packs (fixed position) are never lifted and nothing can be dropped across them; the blocked spot is marked in red with a "Fixed position" hint.
-- Required packs such as the built-in Default pack can be re-ordered but never disabled.
-- Dropping a single incompatible pack into the enabled list shows the same confirmation dialog as vanilla.
-- Selection highlights fade in and out instead of switching instantly.
+- Enter, Space, or the arrow of any selected pack sends the whole selection to the other list; pressing it again brings the selection back. Packs that cannot go (required or incompatible ones) stay behind and drop out of the selection.
+- Only one list ever holds a selection: selecting something with the keyboard in the other list, or sending a group across, no longer leaves a highlighted pack behind in both lists.
+- Pinned packs (fixed position) are never lifted and nothing can be dropped across them; the blocked spot is marked in red.
+- Required packs such as the built-in Default pack can be re-ordered but never disabled; the card and the list turn red when you hold one over the available list.
+- Dropping a single incompatible pack into the enabled list shows the same confirmation dialog as vanilla; dragging several incompatible packs there turns the card red.
+- Selection highlights fade in and out instead of switching instantly, and the outline of a multi-selection glides: a Shift+click range grows out of the row it started at, a shorter range shrinks back, and a Ctrl+click extends or splits the outline instead of it appearing all at once.
 - Animations run on real time, so they look the same at 30 and at 300 FPS.
-- English and Russian translations.
 
 ### Compatibility
 - Minecraft 1.21.1 on Fabric (Fabric Loader 0.16.4 or newer) and NeoForge (21.1.259 or newer), Java 21. Client side only.

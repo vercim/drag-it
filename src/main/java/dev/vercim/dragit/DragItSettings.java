@@ -24,6 +24,8 @@ public final class DragItSettings {
 
 	/** How fast the selection highlight of a pack (single and multi) fades in / out. */
 	public static final double SELECTION_FADE_RATE = 20.0;
+	/** How fast the edges of the multi-selection outline glide to the rows they enclose. */
+	public static final double SELECTION_EDGE_RATE = 16.0;
 
 	/** Scale of the fully lifted entry. */
 	public static final float GHOST_SCALE = 1.05F;
@@ -40,11 +42,13 @@ public final class DragItSettings {
 
 	/** ARGB colour of the insertion placeholder and the active-list frame. */
 	public static final int INDICATOR_COLOR = 0xFF55AAFF;
-	/** ARGB colour used when the insertion point is not allowed (pinned packs). */
+	/** ARGB colour used when the pack cannot be dropped (pinned packs, a required pack over "available", incompatible packs over "selected"). */
 	public static final int BLOCKED_COLOR = 0xFFE05555;
 	/** ARGB frame and fill of a pack that is part of the Shift multi-selection. */
 	public static final int MULTI_SELECT_BORDER = 0xFF55AAFF;
 	public static final int MULTI_SELECT_FILL = 0xFF1F3550;
 	/** ARGB fill of the lifted entry's card. */
 	public static final int GHOST_BACKGROUND = 0xFF1B1B1B;
+	/** ARGB fill of the lifted entry's card while it is over a spot where it cannot be dropped. */
+	public static final int GHOST_BLOCKED_BACKGROUND = 0xFF3D1A1A;
 }

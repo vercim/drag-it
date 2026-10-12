@@ -42,19 +42,19 @@ src/main/java/dev/vercim/dragit/
     DragRenderer.java              — draws the placeholder, the blocked marker and the lifted card; pure drawing
     DropTarget.java                — works out which list and which gap a drop lands in; pinned-pack zones
     EntryAnimator.java             — smooth per-pack vertical offsets that survive vanilla rebuilding the rows
+    SelectionBands.java            — the multi-selection outline: one animated band per run of selected rows, tied to its packs
     ListGeometry.java              — row geometry of vanilla's TransferableSelectionList, recomputed from live state
     ControllerHolder.java          — implemented by PackSelectionScreen (via mixin): one DragController per screen
   mixin/                           — one mixin per vanilla class it targets, named after that class
     MouseHandlerMixin.java         — MouseHandler.onPress HEAD: sees every press and release, can hold a press back
     ScreenMixin.java               — Screen.render HEAD/TAIL and Screen.keyPressed HEAD, no-ops for non-pack screens
     PackSelectionScreenMixin.java  — owns the controller; cancels the gesture on re-layout and close
-    PackEntryMixin.java            — @WrapMethod render: hides the lifted row, slides rows, draws fading highlights
+    PackEntryMixin.java            — @WrapMethod render: hides the lifted row, slides rows, draws the selection highlights
     TransferableSelectionListMixin.java — @WrapMethod renderSelection: skips vanilla's instant frame
     accessor/                      — accessors for PackSelectionScreen, PackSelectionModel, TransferableSelectionList,
                                      AbstractSelectionList, PackEntry
   neoforge/DragItNeoForge.java     — the @Mod class javafml requires; empty, the mod works through Mixin only
 src/main/resources/
-  assets/dragit/lang/              — en_us.json, ru_ru.json (keep in sync)
   fabric.mod.json, META-INF/neoforge.mods.toml, dragit.mixins.json, icon.png
 ```
 
@@ -77,9 +77,10 @@ DRAGGING --release / Esc--> SETTLING (the lifted card glides into its slot) --ar
 - The mod stores no pack state. Re-ordering edits the model's own lists and calls its change callback, so "Done" applies exactly what is shown. Moving between lists goes through vanilla `Entry.select()` / `Entry.unselect()` first, then the pack is moved to the exact index.
 - Everything is driven by real time (`System.nanoTime()` per frame), never by ticks. Rates in `DragItSettings` are "per second" and applied as `1 - exp(-dt * rate)`, so motion is identical at any FPS. Do not add tick-based animation.
 - A drop *gap* `g` is an index into the target list with the dragged packs removed; the pack ends up at `list.add(g, pack)`. It is the same number for "move inside a list" and "come from the other list".
-- Pinned packs (fixed position) are never lifted and nothing is dropped across them. Required packs (the built-in Default pack) can be re-ordered but never disabled. Do not conflate the two.
+- Pinned packs (fixed position) are never lifted and nothing is dropped across them. Required packs (the built-in Default pack) can be re-ordered but never disabled. Do not conflate the two. A refused drop is shown by colour only (red card and list frame, plus a red line at a pinned boundary); the mod draws no text for it.
 - Any `RuntimeException` in the controller cancels the gesture and logs once (`fail()`); the screen must never be left stuck in a drag.
 - Multi-selection follows file-manager rules; the doc comment on `modifierClick` is the specification. The selection lives in one list at a time.
+- The multi-selection outline is drawn by `SelectionBands`, not per pack: one band per run of neighbouring selected rows, whose edges glide (rate `SELECTION_EDGE_RATE`) when the selection is edited. A band is anchored to the first and last pack of its run, so it follows its packs when vanilla rebuilds the list and only selection edits animate. Rows draw their own slice of it from `PackEntryMixin`, inside the row's (possibly sliding) frame.
 
 ## Mixin rules
 
@@ -102,7 +103,7 @@ Exact Minecraft signatures are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)
 
 ## Localization
 
-The only user-visible text the mod adds is the "Fixed position" hint (`dragit.hint.locked`). On Fabric the mod's lang files are only loaded when Fabric API is present, so the hint is rendered with `Component.translatableWithFallback` and an English/Russian fallback chosen by the selected language. Keep the fallback strings and both lang files in sync. Reuse vanilla translation keys where vanilla already has the text (for example the incompatible-pack dialog).
+The mod adds no user-visible text and ships no lang files; a refused drop is shown in red only. If text is ever added: on Fabric a mod's lang files are only loaded when Fabric API is present, so render it with `Component.translatableWithFallback` and an English/Russian fallback chosen by the selected language, and reuse vanilla translation keys where vanilla already has the text (for example the incompatible-pack dialog).
 
 ## Changelog
 
@@ -126,4 +127,3 @@ Build and run problems (wrong JDK, locked files on Windows, `verifyJar` failures
 - **NeoForge reports an invalid mod id** → ids may not contain hyphens; keep `mod_id=dragit`.
 - **A press on an arrow no longer works** → `MouseHandlerMixin` swallows the press until the cursor moves; the release must replay the click to vanilla (`onRelease` in `PENDING`).
 - **Pointer position is off by a constant factor** → `Window.getWidth()` was used instead of `getScreenWidth()` (see Mixin rules).
-- **Raw `dragit.hint.locked` shown instead of text** → the lang files are not loaded without Fabric API; keep the fallback in `DragRenderer.lockedHint()`.

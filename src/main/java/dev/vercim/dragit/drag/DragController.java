@@ -61,7 +61,7 @@ public final class DragController {
 	static final class Indicator {
 		double y;
 		double alpha;
-		boolean blocked;
+		DropTarget.Block block = DropTarget.Block.NONE;
 	}
 
 	private record Grab(int list, int index, String name) {
@@ -82,12 +82,20 @@ public final class DragController {
 	double ghostX;
 	double ghostY;
 	double lift;
+	/** 0..1: how red the lifted card currently is; eases towards 1 while the cursor is over a refused spot. */
+	double blockedMix;
 	double pointerX;
 	double pointerY;
 
 	private final Set<String> multi = new LinkedHashSet<>();
-	private final Map<String, Double> multiAlpha = new HashMap<>();
+	private final SelectionBands bands = new SelectionBands();
+	/** The multi-selection as the outline bands last saw it, to tell an edit of the selection from packs merely changing lists. */
+	private final Set<String> bandSelection = new HashSet<>();
+	/** Pack the outline of a newly selected run grows out of (the row that was selected before the click); consumed by the next frame. */
+	private String bandSeed;
 	private final Map<String, Double> selectionAlpha = new HashMap<>();
+	/** Vanilla's single selection (pack id) of each list as {@link #settleSelection} last saw it, to tell which one is the newer. */
+	private final String[] lastSelected = new String[2];
 	private int multiList = -1;
 	private String multiAnchor;
 
@@ -339,10 +347,15 @@ public final class DragController {
 		return ListGeometry.cardRight(list);
 	}
 
-	/** How visible the multi-selection highlight of this pack is, 0..1; it fades in on select and out on deselect. */
-	public float multiAlpha(String name) {
-		Double alpha = multiAlpha.get(name);
-		return alpha == null ? 0F : alpha.floatValue();
+	/**
+	 * Draws the part of the animated multi-selection outline that lies on one row, under the row's content and in the row's
+	 * own (possibly sliding) frame. {@code left..right} and {@code top..bottom} are the row's whole cell.
+	 */
+	public void drawMultiSelection(GuiGraphics context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
+		int list = listOf(widget);
+		if (list >= 0) {
+			DragRenderer.drawSelection(context, bands, list, index, left, top, right, bottom);
+		}
 	}
 
 	/** Same for vanilla's single selection (the white frame), which the mod draws itself so that it can fade. */
@@ -351,9 +364,44 @@ public final class DragController {
 		return alpha == null ? 0F : alpha.floatValue();
 	}
 
+	/**
+	 * The screen holds one selection, in one list. Vanilla does not guarantee it: moving the keyboard focus to the other list
+	 * leaves the old list's selected row behind (its frame stays, and a list that was ever focused keeps drawing it white), and
+	 * the keyboard can select a row while a multi-selection exists. The newer selection wins and the older one is dropped.
+	 */
+	private void settleSelection() {
+		boolean[] fresh = new boolean[2];
+		String[] now = new String[2];
+		for (int i = 0; i < 2; i++) {
+			TransferableSelectionList.PackEntry entry = list(i).getSelected();
+			now[i] = entry == null ? null : entry.getPackId();
+			fresh[i] = now[i] != null && !now[i].equals(lastSelected[i]);
+		}
+		if (now[0] != null && now[1] != null) {
+			int keep = fresh[0] != fresh[1] ? (fresh[0] ? AVAILABLE : SELECTED) : (screen.getFocused() == list(AVAILABLE) ? AVAILABLE : SELECTED);
+			int stale = 1 - keep;
+			list(stale).setSelected(null);
+			now[stale] = null;
+			fresh[stale] = false;
+		}
+		if ((fresh[0] || fresh[1]) && !multi.isEmpty()) {
+			clearMulti();
+		}
+		System.arraycopy(now, 0, lastSelected, 0, 2);
+	}
+
 	private void updateHighlightAlpha() {
+		settleSelection();
 		double blend = 1.0 - Math.exp(-dt * DragItSettings.SELECTION_FADE_RATE);
-		fade(multiAlpha, multi, blend);
+		boolean edited = !multi.equals(bandSelection);
+		if (edited) {
+			bandSelection.clear();
+			bandSelection.addAll(multi);
+		}
+		for (int i = 0; i < 2; i++) {
+			bands.update(i, ListGeometry.names(list(i)), multi, edited, bandSeed, dt);
+		}
+		bandSeed = null;
 		Set<String> selected = new HashSet<>();
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList.PackEntry entry = list(i).getSelected();
@@ -439,11 +487,13 @@ public final class DragController {
 				}
 			}
 			multiAnchor = anchor;
+			bandSeed = anchor; // the outline grows from the anchor towards the clicked pack
 		} else {
 			if (!multi.remove(name)) {
 				multi.add(name);
 			}
 			multiAnchor = name;
+			bandSeed = seed ? vanilla.getPackId() : null; // a lone pack that was selected the vanilla way turns into the first row of the outline
 		}
 		if (multi.isEmpty()) {
 			multiList = -1;
@@ -475,6 +525,7 @@ public final class DragController {
 		if (multi.isEmpty()) {
 			multiList = -1;
 		}
+		bandSeed = null;
 		screen.clearSelected();
 		return true;
 	}
@@ -560,7 +611,24 @@ public final class DragController {
 		organizer().dragit$refreshEnabledProfiles();
 		list(AVAILABLE).clampScrollAmount();
 		list(SELECTED).clampScrollAmount();
-		multiList = to;
+		followToList(moved, to);
+	}
+
+	/**
+	 * After a group move the selection is exactly the packs that moved. Those that could not go (required, incompatible) stay
+	 * where they are, unselected: the selection never spans both lists.
+	 */
+	private void followToList(List<Pack> moved, int to) {
+		Set<String> ids = new HashSet<>();
+		for (Pack pack : moved) {
+			ids.add(pack.getId());
+		}
+		multi.retainAll(ids);
+		if (multi.isEmpty()) {
+			clearMulti();
+		} else {
+			multiList = to;
+		}
 	}
 
 	/** Vanilla inserts every enabled pack by its own default position; put the moved ones back in the order they had on screen. */
@@ -599,7 +667,9 @@ public final class DragController {
 			clearMulti();
 			return;
 		}
-		multiList = ListGeometry.indexOf(list(SELECTED), multi.iterator().next()) >= 0 ? SELECTED : AVAILABLE;
+		int list = ListGeometry.indexOf(list(SELECTED), multi.iterator().next()) >= 0 ? SELECTED : AVAILABLE;
+		multi.removeIf(name -> ListGeometry.indexOf(list(list), name) < 0); // the selection never spans both lists
+		multiList = list;
 	}
 
 	// ---------------------------------------------------------------- per-frame update
@@ -695,6 +765,7 @@ public final class DragController {
 		ghostX = ghostTX = entryX;
 		ghostY = ghostTY = entryY;
 		lift = 0;
+		blockedMix = 0;
 		phase = Phase.DRAGGING;
 		screen.clearSelected();
 		tickDragging();
@@ -725,8 +796,16 @@ public final class DragController {
 		List<Pack>[] lists = new List[]{profiles(AVAILABLE), profiles(SELECTED)};
 		TransferableSelectionList[] widgets = {list(AVAILABLE), list(SELECTED)};
 		double cardCenterY = y - grabDY + ListGeometry.entryHeight(list(srcList)) / 2.0;
-		boolean[] allowed = {!moversTo(AVAILABLE).isEmpty(), !moversTo(SELECTED).isEmpty()};
-		return DropTarget.compute(widgets, lists, profile, dragProfiles, srcList, x, y, cardCenterY, allowed);
+		DropTarget.Block[] refusal = {refusal(AVAILABLE), refusal(SELECTED)};
+		return DropTarget.compute(widgets, lists, profile, dragProfiles, srcList, x, y, cardCenterY, refusal);
+	}
+
+	/** Why none of the dragged packs can go to {@code target}; {@link DropTarget.Block#NONE} if at least one can. */
+	private DropTarget.Block refusal(int target) {
+		if (!moversTo(target).isEmpty()) {
+			return DropTarget.Block.NONE;
+		}
+		return target == AVAILABLE ? DropTarget.Block.REQUIRED : DropTarget.Block.INCOMPATIBLE;
 	}
 
 	/**
@@ -802,6 +881,7 @@ public final class DragController {
 	/** Computes where every entry of both lists wants to be and eases it there; also drives the placeholder. */
 	private void updateModel() {
 		double indicatorBlend = 1.0 - Math.exp(-dt * DragItSettings.INDICATOR_RATE);
+		blockedMix += ((phase == Phase.DRAGGING && drop.blocked() ? 1.0 : 0.0) - blockedMix) * indicatorBlend;
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
 			List<TransferableSelectionList.PackEntry> children = list.children();
@@ -834,7 +914,7 @@ public final class DragController {
 				} else {
 					indicator.y += (target - indicator.y) * indicatorBlend;
 				}
-				indicator.blocked = drop.blocked();
+				indicator.block = drop.block();
 			}
 			indicator.alpha += ((active ? 1.0 : 0.0) - indicator.alpha) * indicatorBlend;
 			if (!active && indicator.alpha < 0.01) {
@@ -939,6 +1019,9 @@ public final class DragController {
 			organizer().dragit$getUpdateCallback().run();
 		}
 		organizer().dragit$refreshEnabledProfiles();
+		if (!multi.isEmpty()) {
+			followToList(moved, targetList);
+		}
 	}
 
 	/** Same standard confirmation dialog vanilla shows when enabling an incompatible pack. */

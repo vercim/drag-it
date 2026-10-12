@@ -18,6 +18,17 @@ final class DropTarget {
 
 	static final int NO_LIST = -1;
 
+	/** Why a spot is refused; anything but {@link #NONE} is shown in red. */
+	enum Block {
+		NONE,
+		/** The cursor is on a spot forbidden by fixed-position packs. */
+		PINNED,
+		/** Every dragged pack is required (the built-in "Default" pack) and so cannot be disabled. */
+		REQUIRED,
+		/** Several packs are dragged to "selected" and none is compatible (a lone incompatible pack gets vanilla's dialog instead). */
+		INCOMPATIBLE
+	}
+
 	/**
 	 * A pack that must keep its place: fixed-position ("pinned") packs. Nothing may be dropped across them and they are
 	 * never lifted. Required packs such as the built-in "Default" pack (required but not pinned in vanilla 1.21.1) are
@@ -31,10 +42,16 @@ final class DropTarget {
 	 * @param list    {@code DragController.AVAILABLE}/{@code SELECTED}, or {@link #NO_LIST} when the cursor is outside both lists
 	 * @param gap     insertion gap (already clamped into the allowed range)
 	 * @param valid   the pack may be dropped here
-	 * @param blocked the cursor is on a spot forbidden by pinned packs (gap is the nearest allowed boundary)
+	 * @param block   why the pack cannot be dropped here, {@link Block#NONE} if it can; for {@link Block#PINNED} the gap is
+	 *                the nearest allowed boundary
 	 */
-	record Result(int list, int gap, boolean valid, boolean blocked) {
-		static final Result NONE = new Result(NO_LIST, -1, false, false);
+	record Result(int list, int gap, boolean valid, Block block) {
+		static final Result NONE = new Result(NO_LIST, -1, false, Block.NONE);
+
+		/** The cursor is over a list that refuses the pack: shown in red. */
+		boolean blocked() {
+			return block != Block.NONE;
+		}
 	}
 
 	/**
@@ -46,11 +63,11 @@ final class DropTarget {
 	 * @param pointerX cursor, GUI px
 	 * @param pointerY cursor, GUI px
 	 * @param probeY   vertical position used to pick the gap (centre of the lifted card), GUI px
-	 * @param allowed  per list: whether any of the packs may be dropped there at all (a required pack cannot be disabled...)
+	 * @param refusal  per list: {@link Block#NONE} if any of the packs may be dropped there, else why none can (a required pack cannot be disabled...)
 	 */
 	static Result compute(
 		TransferableSelectionList[] lists, List<Pack>[] profiles, Pack dragged, List<Pack> group,
-		int srcList, double pointerX, double pointerY, double probeY, boolean[] allowed
+		int srcList, double pointerX, double pointerY, double probeY, Block[] refusal
 	) {
 		int target = NO_LIST;
 		for (int i = 0; i < lists.length; i++) {
@@ -69,8 +86,8 @@ final class DropTarget {
 		List<Pack> base = new ArrayList<>(profiles[target]);
 		base.removeAll(group);
 		int n = base.size();
-		if (!allowed[target]) {
-			return new Result(target, n, false, false); // e.g. a required pack can be moved around but never disabled
+		if (refusal[target] != Block.NONE) {
+			return new Result(target, n, false, refusal[target]); // e.g. a required pack can be moved around but never disabled
 		}
 		int itemHeight = ListGeometry.itemHeight(list);
 		int origin = ListGeometry.originY(list);
@@ -110,12 +127,12 @@ final class DropTarget {
 		}
 
 		if (raw < lo) {
-			return new Result(target, lo, false, true);
+			return new Result(target, lo, false, Block.PINNED);
 		}
 		if (raw > hi) {
 			// Empty space below the last pack means "put it last": that is the end of the allowed range, not an error.
-			return emptySpace ? new Result(target, hi, true, false) : new Result(target, hi, false, true);
+			return emptySpace ? new Result(target, hi, true, Block.NONE) : new Result(target, hi, false, Block.PINNED);
 		}
-		return new Result(target, raw, true, false);
+		return new Result(target, raw, true, Block.NONE);
 	}
 }
