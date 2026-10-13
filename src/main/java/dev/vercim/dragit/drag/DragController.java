@@ -190,19 +190,6 @@ public final class DragController {
 		//?}
 	}
 
-	/**
-	 * From 1.21.10 the screen has a search box that hides the packs that do not match. A list that shows fewer packs than the
-	 * model holds no longer lines up with the model's order, so no pack is lifted until the filter is cleared.
-	 */
-	private boolean filtered() {
-		for (int i = 0; i < 2; i++) {
-			if (ListGeometry.entries(list(i)).size() != profiles(i).size()) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private Pack findProfile(String id) {
 		for (int i = 0; i < 2; i++) {
 			for (Pack profile : profiles(i)) {
@@ -352,9 +339,6 @@ public final class DragController {
 	}
 
 	private Grab findGrabbable(double x, double y) {
-		if (filtered()) {
-			return null; // vanilla keeps handling clicks, arrows and the keyboard
-		}
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
 			if (!list.isMouseOver(x, y)) {
@@ -811,7 +795,7 @@ public final class DragController {
 
 	private void tickDragging() {
 		Pack profile = findProfile(packId);
-		boolean intact = profile != null && !filtered();
+		boolean intact = profile != null;
 		for (String id : dragIds) {
 			intact &= ListGeometry.indexOf(list(srcList), id) >= 0;
 		}
@@ -1101,7 +1085,7 @@ public final class DragController {
 				return Outcome.REJECTED;
 			}
 			profiles.removeAll(dragProfiles);
-			profiles.addAll(Math.min(result.gap(), profiles.size()), dragProfiles);
+			profiles.addAll(Math.min(result.modelGap(), profiles.size()), dragProfiles);
 			if (profiles.equals(before)) {
 				return Outcome.UNCHANGED;
 			}
@@ -1126,16 +1110,16 @@ public final class DragController {
 			return Outcome.REJECTED;
 		}
 		if (result.list() == SELECTED && packs.size() == 1 && !packs.get(0).getCompatibility().isCompatible()) {
-			confirmIncompatible(packs.get(0), movers.get(0), result.gap());
+			confirmIncompatible(packs.get(0), movers.get(0), result.modelGap());
 			return Outcome.DEFERRED;
 		}
-		crossList(packs, movers, result.list(), result.gap());
+		crossList(packs, movers, result.list(), result.modelGap());
 		return Outcome.APPLIED;
 	}
 
 	/**
 	 * Moves packs to the other list through vanilla's own enable()/disable() (which also handles the high-contrast
-	 * option and refreshes the manager), then slides them as one block to the exact gap.
+	 * option and refreshes the manager), then slides them as one block to the exact gap (an index into the model's list).
 	 */
 	private void crossList(List<PackSelectionModel.Entry> packs, List<Pack> moved, int targetList, int gap) {
 		for (PackSelectionModel.Entry pack : packs) {
