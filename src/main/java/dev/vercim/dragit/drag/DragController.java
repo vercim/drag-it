@@ -868,7 +868,7 @@ public final class DragController {
 	 * Whether a card of the lifted stack is shown refused at the current cursor position. A refused spot (pinned zone, a list
 	 * that takes none of the packs) reddens every card; over a list that takes only some of them, just the cards of the packs
 	 * that would stay behind. Card 0 is the grabbed pack, cards 1.. stand for the others in list order; the last card of a
-	 * stack of more than three stands for all the rest and is red only if none of them can go.
+	 * stack of more than three stands for all the rest and is red if any of them cannot go.
 	 */
 	private boolean cardRefused(int card) {
 		if (drop.blocked()) {
@@ -890,7 +890,7 @@ public final class DragController {
 			int to = card == blockedMix.length - 1 ? represented.size() : card;
 			represented = represented.subList(Math.min(from, represented.size()), Math.min(to, represented.size()));
 		}
-		return !represented.isEmpty() && movers.stream().noneMatch(represented::contains);
+		return !movers.containsAll(represented);
 	}
 
 	private void autoScroll() {
@@ -920,7 +920,9 @@ public final class DragController {
 		final int card;
 		double x;
 		double y;
-		/** List its row is in; -1 until the first frame of the settle looks it up. */
+		/** 0..1: how red the card is; eases back to 0 on the way (a pack that stayed behind starts red). */
+		double mix;
+		/** List its row is in once the drop is applied. */
 		int list = -1;
 
 		Follower(String name, int card, double x, double y) {
@@ -941,7 +943,10 @@ public final class DragController {
 			}
 			int card = Math.min(++k, 2);
 			int offset = (int) Math.round(card * 4 * lift); // where DragRenderer drew this layer of the stack
-			followers.add(new Follower(id, card, ghostX + offset, ghostY + offset));
+			Follower f = new Follower(id, card, ghostX + offset, ghostY + offset);
+			f.list = ListGeometry.indexOf(list(list), id) >= 0 ? list : 1 - list; // a pack that could not go stays where it was
+			f.mix = list == srcList || f.list != list ? blockedMix[card] : 0;
+			followers.add(f);
 		}
 		settleList = list;
 		phase = Phase.SETTLING;
@@ -968,9 +973,6 @@ public final class DragController {
 
 	/** Moves a follower towards its row; false once it has arrived (or its pack is gone), when its row is shown again. */
 	private boolean glideFollower(Follower f, double glide) {
-		if (f.list < 0) { // a pack that could not go stays in the list it came from
-			f.list = ListGeometry.indexOf(list(settleList), f.name) >= 0 ? settleList : 1 - settleList;
-		}
 		TransferableSelectionList list = list(f.list);
 		int index = ListGeometry.indexOf(list, f.name);
 		if (index < 0) {
@@ -980,6 +982,7 @@ public final class DragController {
 		double ty = ListGeometry.rowTop(list, index);
 		f.x += (tx - f.x) * glide;
 		f.y += (ty - f.y) * glide;
+		f.mix -= f.mix * (1.0 - Math.exp(-dt * DragItSettings.LIFT_RATE));
 		if (Math.abs(tx - f.x) < 0.3 && Math.abs(ty - f.y) < 0.3 && lift < 0.03) {
 			animator.snap(f.list, f.name, index, ListGeometry.itemHeight(list));
 			return false;
