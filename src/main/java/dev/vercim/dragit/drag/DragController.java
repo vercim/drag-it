@@ -84,6 +84,8 @@ public final class DragController {
 	final List<String> dragIds = new ArrayList<>();
 	final List<Pack> dragProfiles = new ArrayList<>();
 	int settleList;
+	/** The rest of a dropped stack: each card glides from its place in the stack into the row of its pack. */
+	final List<Follower> followers = new ArrayList<>();
 	DropTarget.Result drop = DropTarget.Result.NONE;
 	double ghostX;
 	double ghostY;
@@ -135,7 +137,7 @@ public final class DragController {
 		if (phase == Phase.DRAGGING) {
 			return dragIds.contains(name); // the whole group leaves its rows
 		}
-		return phase == Phase.SETTLING && name.equals(packId);
+		return phase == Phase.SETTLING && (name.equals(packId) || followers.stream().anyMatch(f -> f.name.equals(name)));
 	}
 
 	/** Vanilla "hovered" decorations (arrows) are meaningless while entries slide around. */
@@ -335,6 +337,7 @@ public final class DragController {
 		packId = null;
 		dragIds.clear();
 		dragProfiles.clear();
+		followers.clear();
 		drop = DropTarget.Result.NONE;
 		lift = 0;
 		swallowRelease = gesture && buttonDown;
@@ -911,6 +914,39 @@ public final class DragController {
 		}
 	}
 
+	/** A card of the dropped stack other than the one the cursor held; {@code card} is its layer in the stack (1 or 2). */
+	static final class Follower {
+		final String name;
+		final int card;
+		double x;
+		double y;
+		/** List its row is in; -1 until the first frame of the settle looks it up. */
+		int list = -1;
+
+		Follower(String name, int card, double x, double y) {
+			this.name = name;
+			this.card = card;
+			this.x = x;
+			this.y = y;
+		}
+	}
+
+	/** Starts the glide of the lifted card, and of every other card of the stack, into the rows they now have. */
+	private void beginSettle(int list) {
+		followers.clear();
+		int k = 0;
+		for (String id : dragIds) {
+			if (id.equals(packId)) {
+				continue;
+			}
+			int card = Math.min(++k, 2);
+			int offset = (int) Math.round(card * 4 * lift); // where DragRenderer drew this layer of the stack
+			followers.add(new Follower(id, card, ghostX + offset, ghostY + offset));
+		}
+		settleList = list;
+		phase = Phase.SETTLING;
+	}
+
 	private void tickSettling() {
 		TransferableSelectionList list = list(settleList);
 		int index = ListGeometry.indexOf(list, packId);
@@ -918,15 +954,37 @@ public final class DragController {
 			finishSettle();
 			return;
 		}
+		double glide = 1.0 - Math.exp(-dt * DragItSettings.SETTLE_RATE);
+		followers.removeIf(f -> !glideFollower(f, glide));
 		ghostTX = ListGeometry.contentLeft(list);
 		ghostTY = ListGeometry.rowTop(list, index);
-		double glide = 1.0 - Math.exp(-dt * DragItSettings.SETTLE_RATE);
 		ghostX += (ghostTX - ghostX) * glide;
 		ghostY += (ghostTY - ghostY) * glide;
 		lift -= lift * (1.0 - Math.exp(-dt * DragItSettings.LIFT_RATE));
-		if (Math.abs(ghostTX - ghostX) < 0.3 && Math.abs(ghostTY - ghostY) < 0.3 && lift < 0.03) {
+		if (Math.abs(ghostTX - ghostX) < 0.3 && Math.abs(ghostTY - ghostY) < 0.3 && lift < 0.03 && followers.isEmpty()) {
 			finishSettle();
 		}
+	}
+
+	/** Moves a follower towards its row; false once it has arrived (or its pack is gone), when its row is shown again. */
+	private boolean glideFollower(Follower f, double glide) {
+		if (f.list < 0) { // a pack that could not go stays in the list it came from
+			f.list = ListGeometry.indexOf(list(settleList), f.name) >= 0 ? settleList : 1 - settleList;
+		}
+		TransferableSelectionList list = list(f.list);
+		int index = ListGeometry.indexOf(list, f.name);
+		if (index < 0) {
+			return false;
+		}
+		double tx = ListGeometry.contentLeft(list);
+		double ty = ListGeometry.rowTop(list, index);
+		f.x += (tx - f.x) * glide;
+		f.y += (ty - f.y) * glide;
+		if (Math.abs(tx - f.x) < 0.3 && Math.abs(ty - f.y) < 0.3 && lift < 0.03) {
+			animator.snap(f.list, f.name, index, ListGeometry.itemHeight(list));
+			return false;
+		}
+		return true;
 	}
 
 	private void finishSettle() {
@@ -937,6 +995,15 @@ public final class DragController {
 				animator.snap(settleList, packId, index, ListGeometry.itemHeight(list));
 			}
 		}
+		for (Follower f : followers) {
+			if (f.list >= 0 && ready()) {
+				int index = ListGeometry.indexOf(list(f.list), f.name);
+				if (index >= 0) {
+					animator.snap(f.list, f.name, index, ListGeometry.itemHeight(list(f.list)));
+				}
+			}
+		}
+		followers.clear();
 		phase = Phase.IDLE;
 		packId = null;
 		lift = 0;
@@ -992,8 +1059,7 @@ public final class DragController {
 	// ---------------------------------------------------------------- dropping
 
 	private void cancelDrag() {
-		settleList = srcList;
-		phase = Phase.SETTLING;
+		beginSettle(srcList);
 		drop = DropTarget.Result.NONE;
 		swallowRelease = buttonDown;
 	}
@@ -1013,8 +1079,7 @@ public final class DragController {
 		DropTarget.Result result = computeDrop(profile, x, y);
 		drop = DropTarget.Result.NONE;
 		Outcome outcome = apply(profile, result);
-		settleList = outcome == Outcome.APPLIED ? result.list() : srcList;
-		phase = Phase.SETTLING;
+		beginSettle(outcome == Outcome.APPLIED ? result.list() : srcList);
 		if (outcome == Outcome.APPLIED) {
 			ListGeometry.clampScroll(list(AVAILABLE));
 			ListGeometry.clampScroll(list(SELECTED));
