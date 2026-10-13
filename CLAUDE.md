@@ -105,7 +105,7 @@ Exact Minecraft signatures are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)
 - **Mixins:** Fabric registers `dragit.mixins.json` in `fabric.mod.json` (`"mixins"`); NeoForge needs `[[mixins]]` in `META-INF/neoforge.mods.toml`.
 - **Entry point:** NeoForge's `javafml` refuses a mod without a `@Mod` class, so `DragItNeoForge` exists and is empty. It is `Dist.CLIENT` only.
 - **Metadata:** each JAR carries only its own descriptor (`fabric.mod.json` or `neoforge.mods.toml`); the build excludes the other.
-- **Icon:** `icon.png` is pixel art. NeoForge sets `logoBlur = false`; Mod Menu has no option for icon filtering, so nothing is configurable on Fabric.
+- **Icon:** `icon.png` is pixel art. NeoForge sets `iconBlur = false` (26.2+, where `logoFile` is deprecated and warns at startup unless `iconFile` is also set) and `logoBlur = false` (older versions); Mod Menu has no option for icon filtering, so nothing is configurable on Fabric.
 - **Plugins:** before changing the Gradle wrapper, check compatibility of Stonecutter, Loom Back Compat, Fabric Loom, and NeoForge ModDev.
 
 ## Localization

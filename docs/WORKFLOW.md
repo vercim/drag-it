@@ -140,7 +140,7 @@ On each:
 - repeat the basics on the data pack screen (create a world → Data Packs);
 - from 1.21.10: type into the search box so that a list shows fewer packs, drag, re-order and send packs between the lists, and confirm each pack lands next to the packs you see (and that dropping at the end of a list never puts a pack below the hidden Default pack); clear the search and confirm the order is what the drops produced;
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
-- confirm the mod list shows the pixel icon sharp (NeoForge: `logoBlur = false`).
+- confirm the mod list shows the pixel icon sharp (NeoForge: `iconBlur = false` from 26.2, `logoBlur = false` before), and that 26.2+ shows no "deprecated `logoFile`" loading warning.
 
 ## Changelog
 
