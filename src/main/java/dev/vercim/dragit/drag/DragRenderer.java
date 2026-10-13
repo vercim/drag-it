@@ -49,15 +49,27 @@ final class DragRenderer {
 	}
 
 	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
+		boolean settling = c.phase == DragController.Phase.SETTLING;
+		if (settling) {
+			// Gliding cards may head for rows that are scrolled out of view; keep them inside the lists' area.
+			TransferableSelectionList first = c.list(0);
+			TransferableSelectionList second = c.list(1);
+			int pad = DragItSettings.COLUMN_PADDING;
+			context.enableScissor(
+				Math.min(first.getX(), second.getX()) - pad, Math.min(first.getY(), second.getY()),
+				Math.max(ListGeometry.frameRight(first), ListGeometry.frameRight(second)) + pad, Math.max(first.getBottom(), second.getBottom())
+			);
+		}
 		// The rest of a dropped stack glides below the card the cursor held.
 		for (DragController.Follower f : c.followers) {
-			if (f.list >= 0) {
-				drawCard(c, context, delta, c.list(f.list), f.name, f.x, f.y, f.mix, 1);
-			}
+			drawCard(c, context, delta, c.list(f.list), f.name, f.x, f.y, f.mix, 1);
 		}
 		int listIndex = c.phase == DragController.Phase.DRAGGING ? c.srcList : c.settleList;
 		int count = c.phase == DragController.Phase.DRAGGING ? c.dragIds.size() : 1;
 		drawCard(c, context, delta, c.list(listIndex), c.packId, c.ghostX, c.ghostY, c.blockedMix[0], count);
+		if (settling) {
+			context.disableScissor();
+		}
 	}
 
 	/** One lifted card; {@code count} above 1 stacks cards under it and puts the number of dragged packs on it. */
