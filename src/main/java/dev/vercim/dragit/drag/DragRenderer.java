@@ -52,7 +52,7 @@ final class DragRenderer {
 		// The rest of a dropped stack glides below the card the cursor held.
 		for (DragController.Follower f : c.followers) {
 			if (f.list >= 0) {
-				drawCard(c, context, delta, c.list(f.list), f.name, f.x, f.y, c.blockedMix[f.card], 1);
+				drawCard(c, context, delta, c.list(f.list), f.name, f.x, f.y, f.mix, 1);
 			}
 		}
 		int listIndex = c.phase == DragController.Phase.DRAGGING ? c.srcList : c.settleList;
