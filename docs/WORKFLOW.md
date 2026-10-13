@@ -10,8 +10,14 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 |---|---|---:|
 | `1.21.1-fabric` | Fabric | 21 |
 | `1.21.1-neoforge` | NeoForge | 21 |
+| `1.21.4-fabric` | Fabric | 21 |
+| `1.21.4-neoforge` | NeoForge | 21 |
+| `1.21.10-fabric` | Fabric | 21 |
+| `1.21.10-neoforge` | NeoForge | 21 |
+| `1.21.11-fabric` | Fabric | 21 |
+| `1.21.11-neoforge` | NeoForge | 21 |
 
-The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`.
+The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
 
 ## Requirements
 
@@ -25,7 +31,7 @@ The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). 
 Windows (PowerShell):
 
 ```powershell
-Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or 1.21.1-neoforge
+.\gradlew.bat "Set active project to 1.21.4-fabric"   # or any other target; do this before runActiveClient
 .\gradlew.bat runActiveClient
 .\gradlew.bat buildActive
 .\gradlew.bat buildAndCollect
@@ -36,7 +42,7 @@ Set-Content -NoNewline .sc_active_version "1.21.1-fabric"   # or 1.21.1-neoforge
 macOS / Linux:
 
 ```bash
-printf '1.21.1-fabric' > .sc_active_version   # or 1.21.1-neoforge
+./gradlew "Set active project to 1.21.4-fabric"   # or any other target; do this before runActiveClient
 ./gradlew runActiveClient
 ./gradlew buildActive
 ./gradlew buildAndCollect
@@ -46,6 +52,8 @@ printf '1.21.1-fabric' > .sc_active_version   # or 1.21.1-neoforge
 
 | Task | What it does |
 |---|---|
+| `Set active project to <target>` | Makes a target active and rewrites the version and loader comment blocks in `src/` for it |
+| `Reset active project` | Back to `1.21.1-fabric`; run it before every commit |
 | `runActiveClient` | Runs the client of the active target |
 | `buildActive` | Builds the active target |
 | `buildAndCollect` | Builds every target and collects release JARs in `build/libs/` |
@@ -57,7 +65,7 @@ Do not use `clean` routinely: it discards Gradle and Minecraft preparation work.
 
 Outputs: collected release JARs are in `build/libs/` (for example `dragit-0.0.1-alpha+1.21.1-fabric.jar` and `dragit-0.0.1-alpha+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`.
 
-After changing `.sc_active_version`, re-sync Gradle (IDE reload or any `gradlew` call) so Stonecutter rewrites the loader-specific source blocks. Commit with `1.21.1-fabric` active (the configured `vcsVersion`).
+Switch the active target only with the `Set active project to <target>` task (all of them are listed by `gradlew tasks --group stonecutter`). It updates `.sc_active_version` **and** rewrites the version and loader comment blocks in `src/`. Editing `.sc_active_version` by hand is not enough: the next build compiles `src/` as it is and fails with errors such as "cannot find symbol `getScrollAmount()`". `Refresh active project` repairs comments left in a wrong state. Before committing, run `Reset active project` (back to `1.21.1-fabric`, the configured `vcsVersion`); the diff must not contain comment flips or a changed `.sc_active_version`.
 
 ## Conditional sources
 
@@ -76,7 +84,7 @@ public final class DragItNeoForge {
 *///?}
 ```
 
-Keep conditions as narrow as practical. If a whole entry point is loader-specific, keep its `package` declaration outside the conditional block so the inactive target generates a valid, otherwise empty source file. Minecraft-version differences are expressed the same way, next to the affected code (`//? if >=1.21.2 { … //?} else { /* … *///?}`). Never copy files per version.
+Keep conditions as narrow as practical. If a whole entry point is loader-specific, keep its `package` declaration outside the conditional block so the inactive target generates a valid, otherwise empty source file. Minecraft-version differences are expressed the same way, next to the affected code (`//? if >=1.21.4 { … //?} else { /* … *///?}`; `ListGeometry.scrollAmount` is a small real example). Never copy files per version.
 
 ## CI
 
@@ -118,9 +126,11 @@ On each:
 - confirm Esc cancels a drag and the screen stays open;
 - select several packs (Ctrl+click, Shift+click, Ctrl+Shift+click, Ctrl+A) and drag them as one block; send them across with Enter and with an arrow;
 - drag near a list edge and confirm auto-scroll;
-- if the profile has a pinned pack, confirm it cannot be lifted and that the red blocked marker with the "Fixed position" hint appears next to it;
+- if the profile has a pinned pack, confirm it cannot be lifted and that the red blocked marker appears next to it;
+- drag the Default pack over the available list and confirm the card and the list frame turn red, and that dropping there glides it back;
 - drop an incompatible pack into the enabled list and confirm the vanilla dialog;
 - repeat the basics on the data pack screen (create a world → Data Packs);
+- from 1.21.10: type into the search box so that a list shows fewer packs, confirm no pack can be lifted until the search is cleared, and that the arrows and clicks still work;
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
 - confirm the mod list shows the pixel icon sharp (NeoForge: `logoBlur = false`).
 
@@ -129,8 +139,8 @@ On each:
 [`CHANGELOG.md`](../CHANGELOG.md) is user-facing and is also published as the release notes, so it must be updated together with the version.
 
 - One section per version, newest first: `## [<mod_version>] - YYYY-MM-DD` (the version is exactly `mod_version` from `gradle.properties`, including any `-alpha` / `-beta` suffix).
-- Group entries under `###` headings already in use: `Overall`, `Fixes`, `Compatibility`, `Architecture`, `Documentation`. Short bullets, one change each.
-- Describe changes visible to players or integrators; skip internal-only edits (typos, CI path filters).
+- Group entries under the [Keep a Changelog](https://keepachangelog.com/) headings `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`; use only the ones a version needs. Support for a new Minecraft version or loader goes under `Added`. Short bullets, one change each. The published `0.0.1-alpha` section keeps its older headings (`Overall`, `Compatibility`, ...) and is not rewritten.
+- Describe changes that matter to players or contributors; skip internal changes (build plumbing, refactors, docs upkeep, typos, CI path filters).
 - Do not put other `## [` headings inside a version's section: the release workflow publishes everything between its heading and the next `## [`.
 - Work not yet released may be collected under `## [Unreleased]` at the top and renamed to the version when releasing.
 
@@ -177,7 +187,7 @@ $env:MODRINTH_TOKEN = "x"
 - **"Dependency requires at least JVM runtime version 25"** → Gradle was launched with an older JDK; launch it with JDK 25+ (`JAVA_HOME`, or `setup-java` in CI).
 - **Transparent world in dev** → Gradle is using the wrong JDK; use a Java 21 toolchain.
 - **"Cannot find symbol" in a generated target** → check the active Stonecutter target and its conditional blocks, then re-sync Gradle.
-- **Wrong client runs** → update `.sc_active_version` and use `runActiveClient`.
+- **Wrong client runs, or "cannot find symbol" in `src/` right after switching target** → switch with `Set active project to <target>` (see [Commands](#commands)), not by editing `.sc_active_version`.
 - **`Permission denied` when moving or deleting source directories on Windows** → a Gradle daemon holds the files; run `.\gradlew.bat --stop`.
 - **NeoForge says the mod id is invalid** → NeoForge ids match `[a-z][a-z0-9_]{1,63}`; hyphens are rejected. Keep `mod_id=dragit`.
 - **`verifyJar` fails** → the message names the missing entry; inspect the JAR with `unzip -l`. A mod that loads but does nothing in the packaged JAR usually means the Mixin config is not registered, or a Mixin target name no longer exists.

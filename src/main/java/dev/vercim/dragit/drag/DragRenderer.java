@@ -1,23 +1,14 @@
 package dev.vercim.dragit.drag;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import dev.vercim.dragit.DragItSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
-import net.minecraft.network.chat.Component;
 
 /** Draws the drop placeholder / blocked marker and the lifted entry. Pure drawing; all state lives in {@link DragController}. */
 final class DragRenderer {
 	private DragRenderer() {
-	}
-
-	/** The mod's lang files are only loaded when Fabric API is present, so the text carries its own fallback instead of showing the raw key. */
-	private static Component lockedHint() {
-		String language = Minecraft.getInstance().options.languageCode;
-		String fallback = language != null && language.startsWith("ru") ? "Закреплено" : "Fixed position";
-		return Component.translatableWithFallback("dragit.hint.locked", fallback);
 	}
 
 	static void render(DragController c, GuiGraphics context, float delta) {
@@ -27,14 +18,6 @@ final class DragRenderer {
 		if (c.phase == DragController.Phase.DRAGGING || c.phase == DragController.Phase.SETTLING) {
 			drawGhost(c, context, delta);
 		}
-		if (c.phase == DragController.Phase.DRAGGING && c.drop.blocked()) {
-			Minecraft client = Minecraft.getInstance();
-			PoseStack matrices = context.pose();
-			matrices.pushPose();
-			matrices.translate(0, 0, 300);
-			context.drawString(client.font, lockedHint(), (int) c.pointerX + 10, (int) c.pointerY + 8, DragItSettings.BLOCKED_COLOR);
-			matrices.popPose();
-		}
 	}
 
 	private static void drawIndicator(DragController c, GuiGraphics context, int index) {
@@ -43,25 +26,26 @@ final class DragRenderer {
 			return;
 		}
 		TransferableSelectionList list = c.list(index);
-		int color = indicator.blocked ? DragItSettings.BLOCKED_COLOR : DragItSettings.INDICATOR_COLOR;
+		boolean blocked = indicator.block != DropTarget.Block.NONE;
+		int color = blocked ? DragItSettings.BLOCKED_COLOR : DragItSettings.INDICATOR_COLOR;
 		double a = indicator.alpha;
 
-		int right = ListGeometry.cardRight(list);
+		int right = ListGeometry.frameRight(list);
 		context.enableScissor(list.getX(), list.getY(), right, list.getBottom());
-		int x = list.getRowLeft() - 2;
+		int x = ListGeometry.cellLeft(list);
 		int width = ListGeometry.cardWidth(list);
 		int top = (int) Math.round(ListGeometry.originY(list) + indicator.y);
-		if (indicator.blocked) {
+		if (indicator.block == DropTarget.Block.PINNED) {
 			context.fill(x, top - 3, x + width, top - 1, scale(color, a));
-		} else {
+		} else if (!blocked) {
 			int height = ListGeometry.entryHeight(list);
 			context.fill(x, top - 2, x + width, top + height + 2, scale(color, 0.16 * a));
-			context.renderOutline(x, top - 2, width, height + 4, scale(color, 0.85 * a));
+			GuiCompat.outline(context, x, top - 2, width, height + 4, scale(color, 0.85 * a));
 		}
 		context.disableScissor();
 
 		// Frame around the list that would receive the pack (the scrollbar stays outside of it).
-		context.renderOutline(list.getX(), list.getY(), right - list.getX(), list.getHeight(), scale(color, 0.55 * a));
+		GuiCompat.outline(context, list.getX(), list.getY(), right - list.getX(), list.getHeight(), scale(color, 0.55 * a));
 	}
 
 	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
@@ -81,16 +65,15 @@ final class DragRenderer {
 		float fy = (float) (c.ghostY - iy);
 		float lift = (float) Math.max(0, Math.min(1, c.lift));
 
-		PoseStack matrices = context.pose();
-		matrices.pushPose();
-		matrices.translate(0, 0, 200);
+		GuiCompat.push(context);
+		GuiCompat.raise(context);
 		float scale = 1.0F + (DragItSettings.GHOST_SCALE - 1.0F) * lift;
 		float pivotX = (float) (c.ghostX - 2 + width / 2.0);
 		float pivotY = (float) (c.ghostY + height / 2.0);
-		matrices.translate(pivotX, pivotY, 0);
-		matrices.scale(scale, scale, 1);
-		matrices.translate(-pivotX, -pivotY, 0);
-		matrices.translate(fx, fy, 0);
+		GuiCompat.translate(context, pivotX, pivotY);
+		GuiCompat.scale(context, scale, scale);
+		GuiCompat.translate(context, -pivotX, -pivotY);
+		GuiCompat.translate(context, fx, fy);
 
 		int left = ix - 2;
 		int right = left + width;
@@ -99,21 +82,20 @@ final class DragRenderer {
 			// A dragged selection is shown as a small stack of cards under the one the cursor holds.
 			int o = Math.round(layer * 4 * lift);
 			context.fill(left + o, iy - 2 + o, right + o, iy + height + 2 + o, DragItSettings.GHOST_BACKGROUND);
-			context.renderOutline(left + o, iy - 2 + o, width, height + 4, scale(DragItSettings.INDICATOR_COLOR, 0.35 + 0.35 * lift));
+			GuiCompat.outline(context, left + o, iy - 2 + o, width, height + 4, scale(DragItSettings.INDICATOR_COLOR, 0.35 + 0.35 * lift));
 		}
 		for (int i = 5; i >= 1; i--) {
 			int alpha = (int) (lift * 22);
 			context.fill(left - i + 2, iy - 2 - i + 4, right + i + 2, iy + height + 2 + i + 4, alpha << 24);
 		}
-		int accent = c.phase == DragController.Phase.DRAGGING && c.drop.blocked()
-			? DragItSettings.BLOCKED_COLOR
-			: DragItSettings.INDICATOR_COLOR;
-		context.fill(left, iy - 2, right, iy + height + 2, DragItSettings.GHOST_BACKGROUND);
-		context.renderOutline(left, iy - 2, width, height + 4, scale(accent, 0.35 + 0.55 * lift));
+		int accent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, c.blockedMix);
+		int background = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, c.blockedMix);
+		context.fill(left, iy - 2, right, iy + height + 2, background);
+		GuiCompat.outline(context, left, iy - 2, width, height + 4, scale(accent, 0.35 + 0.55 * lift));
 
 		DragController.setDrawingGhost(true);
 		try {
-			entry.render(context, row, iy, ix, list.getRowWidth(), height, -1000, -1000, false, delta);
+			GuiCompat.drawEntry(context, entry, row, ix, iy, list.getRowWidth(), height, delta);
 		} finally {
 			DragController.setDrawingGhost(false);
 		}
@@ -127,7 +109,49 @@ final class DragRenderer {
 			context.fill(bx, by, bx + badgeWidth, by + 12, scale(DragItSettings.INDICATOR_COLOR, lift));
 			context.drawString(font, label, bx + 4, by + 2, 0xFFFFFFFF, false);
 		}
-		matrices.popPose();
+		GuiCompat.pop(context);
+	}
+
+	/**
+	 * The slice of the multi-selection outline that falls on one row. {@code left..right} and {@code top..bottom} are the
+	 * row's whole cell (cells of neighbouring rows touch), so a band spanning several rows is drawn as one continuous shape.
+	 */
+	static void drawSelection(GuiGraphics context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom) {
+		int height = bottom - top;
+		for (SelectionBands.Band band : bands.bands(list)) {
+			double from = Math.max(band.top, index);
+			double to = Math.min(band.bottom, index + 1);
+			if (band.alpha <= 0.004 || to <= from) {
+				continue;
+			}
+			int y0 = top + (int) Math.round((from - index) * height);
+			int y1 = top + (int) Math.round((to - index) * height);
+			if (y1 <= y0) {
+				continue;
+			}
+			int edge = scale(DragItSettings.MULTI_SELECT_BORDER, band.alpha);
+			context.fill(left, y0, right, y1, scale(DragItSettings.MULTI_SELECT_FILL, band.alpha));
+			context.fill(left, y0, left + 1, y1, edge);
+			context.fill(right - 1, y0, right, y1, edge);
+			if (band.top >= index) { // the top edge of the band lies in this row
+				context.fill(left + 1, y0, right - 1, y0 + 1, edge);
+			}
+			if (band.bottom <= index + 1) { // and its bottom edge
+				context.fill(left + 1, y1 - 1, right - 1, y1, edge);
+			}
+		}
+	}
+
+	/** Linear blend of two ARGB colours, {@code t} in 0..1. */
+	private static int mix(int from, int to, double t) {
+		t = Math.max(0.0, Math.min(1.0, t));
+		int result = 0;
+		for (int shift = 24; shift >= 0; shift -= 8) {
+			int a = (from >>> shift) & 0xFF;
+			int b = (to >>> shift) & 0xFF;
+			result |= (int) Math.round(a + (b - a) * t) << shift;
+		}
+		return result;
 	}
 
 	private static int scale(int argb, double factor) {
