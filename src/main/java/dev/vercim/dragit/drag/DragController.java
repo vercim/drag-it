@@ -6,6 +6,7 @@ import dev.vercim.dragit.DragItSettings;
 import dev.vercim.dragit.mixin.accessor.PackSelectionModelAccessor;
 import dev.vercim.dragit.mixin.accessor.PackSelectionScreenAccessor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -87,8 +88,11 @@ public final class DragController {
 	double ghostX;
 	double ghostY;
 	double lift;
-	/** 0..1: how red the lifted card currently is; eases towards 1 while the cursor is over a refused spot. */
-	double blockedMix;
+	/**
+	 * 0..1 per card of the lifted stack (0 = the card under the cursor, 1 and 2 = the cards behind it): how red it currently
+	 * is; eases towards 1 while the pack(s) it stands for cannot go to the list under the cursor.
+	 */
+	final double[] blockedMix = new double[3];
 	double pointerX;
 	double pointerY;
 
@@ -796,7 +800,7 @@ public final class DragController {
 		ghostX = ghostTX = entryX;
 		ghostY = ghostTY = entryY;
 		lift = 0;
-		blockedMix = 0;
+		Arrays.fill(blockedMix, 0);
 		phase = Phase.DRAGGING;
 		clearVanillaSelection();
 		tickDragging();
@@ -857,6 +861,35 @@ public final class DragController {
 		return movers;
 	}
 
+	/**
+	 * Whether a card of the lifted stack is shown refused at the current cursor position. A refused spot (pinned zone, a list
+	 * that takes none of the packs) reddens every card; over a list that takes only some of them, just the cards of the packs
+	 * that would stay behind. Card 0 is the grabbed pack, cards 1.. stand for the others in list order; the last card of a
+	 * stack of more than three stands for all the rest and is red only if none of them can go.
+	 */
+	private boolean cardRefused(int card) {
+		if (drop.blocked()) {
+			return true;
+		}
+		if (drop.list() == DropTarget.NO_LIST || drop.list() == srcList) {
+			return false;
+		}
+		List<Pack> movers = moversTo(drop.list());
+		List<Pack> represented = new ArrayList<>();
+		for (Pack profile : dragProfiles) {
+			boolean grabbed = profile.getId().equals(packId);
+			if (grabbed == (card == 0)) {
+				represented.add(profile);
+			}
+		}
+		if (card > 0) {
+			int from = card - 1;
+			int to = card == blockedMix.length - 1 ? represented.size() : card;
+			represented = represented.subList(Math.min(from, represented.size()), Math.min(to, represented.size()));
+		}
+		return !represented.isEmpty() && movers.stream().noneMatch(represented::contains);
+	}
+
 	private void autoScroll() {
 		int edge = DragItSettings.AUTOSCROLL_EDGE;
 		int slack = DragItSettings.AUTOSCROLL_SLACK;
@@ -912,7 +945,9 @@ public final class DragController {
 	/** Computes where every entry of both lists wants to be and eases it there; also drives the placeholder. */
 	private void updateModel() {
 		double indicatorBlend = 1.0 - Math.exp(-dt * DragItSettings.INDICATOR_RATE);
-		blockedMix += ((phase == Phase.DRAGGING && drop.blocked() ? 1.0 : 0.0) - blockedMix) * indicatorBlend;
+		for (int card = 0; card < blockedMix.length; card++) {
+			blockedMix[card] += ((phase == Phase.DRAGGING && cardRefused(card) ? 1.0 : 0.0) - blockedMix[card]) * indicatorBlend;
+		}
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
 			List<TransferableSelectionList.PackEntry> children = ListGeometry.entries(list);
