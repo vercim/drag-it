@@ -20,6 +20,10 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 | `26.1-neoforge` | NeoForge | 25 |
 | `26.1.2-fabric` | Fabric | 25 |
 | `26.1.2-neoforge` | NeoForge | 25 |
+| `26.2-fabric` | Fabric | 25 |
+| `26.2-neoforge` | NeoForge | 25 |
+| `26.3-fabric` | Fabric | 25 |
+| `26.3-neoforge` | NeoForge | 25 |
 
 The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge, `java_version=25` for the 26.x targets) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
 

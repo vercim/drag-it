@@ -87,6 +87,72 @@ To find a renamed member when porting, compare the old and new mapping files fro
 
 ## Target entries
 
+### MC 26.3 — Fabric / NeoForge
+
+Targets: `26.3-fabric`, `26.3-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-14
+
+26.3 moved the game from GLFW to **SDL3**: windowing, keyboard and mouse. The GUI classes the mod hooks into are the same as in 26.2.
+
+#### Dependencies
+```properties
+java_version=25                     # versions/26.3-*/gradle.properties
+fabric_loader_version=0.19.5        # min 0.19.3 (versions/26.3-fabric/gradle.properties)
+neoforge_version=26.3.0.76          # versions/26.3-neoforge/gradle.properties
+neoforge_loader_version_range=[4,)
+minecraft_version_range=[26.3,26.3.1)   # NeoForge descriptor
+```
+Only the dev-runtime Fabric Loader 0.19.5 has been run; the 0.19.3 minimum is what Fabric API 0.162.0+26.3 requires, not a tested floor. Resource pack format 97.1: test packs with `pack_format`, `min_format` and `max_format` all 97 are accepted.
+
+#### API differences (vs. 26.2; everything else in the [26.2 entry](#mc-262--fabric--neoforge) applies as well)
+| Area | 26.2 | 26.3 | Where / condition |
+|---|---|---|---|
+| Key codes (`KeyEvent.key()`) | GLFW keys (`A` = 65, Enter = 257, Esc = 256, Space = 32, keypad Enter = 335) | SDL scancodes (`A` = 4, Enter = 40, Esc = 41, Space = 44, keypad Enter = 88) | `GuiCompat.KEY_*`, taken from `InputConstants` |
+| Mouse button numbers | left = 0, right = 1, middle = 2 | left = 1, middle = 2, right = 3 | `GuiCompat.MOUSE_LEFT` (`InputConstants.MOUSE_BUTTON_LEFT`) |
+| Modifier bits | GLFW (`Shift` = 1, `Ctrl` = 2) | SDL (`Shift` = 3, `Ctrl` = 192: left and right keys are separate bits) | `GuiCompat.hasControl` / `hasShift` (`>=26.3` uses `InputConstants.MOD_SHIFT`) |
+| Action codes | `PRESS` = 1, `RELEASE` = 0, `REPEAT` = 2 | `REPEAT` = -1 | `GuiCompat.isPress` |
+| "Is the left button down" | `GLFW.glfwGetMouseButton(window, LEFT)` | `SDLMouse.SDL_GetMouseState(null, null) & SDL_BUTTON_LMASK` | `GuiCompat.leftButtonHeld`, `//? if >=26.3` |
+| `MouseHandler.onButton` | private | public, same signature `(long, MouseButtonInfo, int)` | none (the mixin target is unchanged) |
+| `KeyEvent` | `key`, `scancode`, `modifiers` | `key`, `keycode`, `modifiers`; `shortcutKey()` added | unused by the mod |
+
+Unchanged, checked with `javap` on the merged jar and by the Mixin audit: every class, field and method the mixins and accessors target (see the [26.1 entry](#mc-261--fabric--neoforge)), `Window.handle()`, `getScreenWidth()` / `getGuiScaledWidth()`, `MouseHandler.xpos` / `ypos`, `GuiGraphicsExtractor.fill` / `enableScissor` / `text` / `pose()`.
+
+#### Quirks
+- `org.lwjgl.glfw` is no longer on the compile classpath, so any `GLFW.*` reference fails the build. The mod keeps GLFW only in `GuiCompat`, inside `//? if <26.3` branches (modifier bit of Shift for versions that predate `InputConstants.MOD_SHIFT`, and the button-state query). Everything else uses `InputConstants`, whose values are the right ones for every version.
+- `MouseHandler.isLeftPressed()` is **not** a replacement for the platform query: vanilla sets it inside `onButton`, which the mod's hook has already cancelled when it swallows the press, so it would read "up" during every drag and the mod would think the release was lost.
+- The `SDL_GetMouseState` path was run (it reports "up" while no button is held), but the "reports down" case needs a real held button and has not been exercised.
+- Test scripts (see the scripted smoke test of the [1.21.10 entry](#mc-12110--fabric--neoforge)): the held-button test mixin now targets `GuiCompat.leftButtonHeld` (it was `DragController.leftButtonHeld`); `Minecraft.getMainRenderTarget()` is gone since 26.2 (`gameRenderer.mainRenderTarget()`); the first frames run before `Minecraft.gui` exists (guard against `null`). Events can also be sent through the real input path, which exercises the mixins and the code constants of a version: `MouseHandler.onButton` (`onPress` before 1.21.10; by reflection, it is private up to 26.2; the blocking test mixin must let these calls through) and `Screen.keyPressed`, for a plain drag, Ctrl+click, Enter, Ctrl+A and Esc.
+
+#### Verified
+- 2026-10-14, mod 1.0.0: Mixin audit on both dev clients clean (Fabric: all eight target classes force-loaded, `DRAGIT_AUDIT_OK`, no mixin errors; NeoForge: the not yet loaded ones force-loaded, no errors). Scripted gesture test on both dev clients, **including the real input path** (events sent through `MouseHandler.onButton` and `Screen.keyPressed`: plain drag, Ctrl+click, Enter, Ctrl+A, Esc): all checks passed. `clean buildAndCollect` passes for all sixteen targets.
+- Manual packaged-JAR gesture test on 26.3: not done yet (Fabric ☐ NeoForge ☐).
+
+### MC 26.2 — Fabric / NeoForge
+
+Targets: `26.2-fabric`, `26.2-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-14
+
+#### Dependencies
+```properties
+java_version=25                     # versions/26.2-*/gradle.properties
+fabric_loader_version=0.19.5        # min 0.18.4 (versions/26.2-fabric/gradle.properties)
+neoforge_version=26.2.0.90          # versions/26.2-neoforge/gradle.properties
+neoforge_loader_version_range=[4,)
+minecraft_version_range=[26.2,26.2.1)   # NeoForge descriptor
+```
+Only the dev-runtime Fabric Loader 0.19.5 has been run; the 0.18.4 minimum is what Fabric API 0.161.0+26.2 requires, not a tested floor. Resource pack format 88.
+
+#### API differences (vs. 26.1; everything else in the [26.1 entry](#mc-261--fabric--neoforge) applies as well)
+| Area | 26.1 | 26.2 | Where / condition |
+|---|---|---|---|
+| The open screen | `Minecraft.screen` (field) | `Minecraft.gui.screen()` | `GuiCompat.screen`, `//? if >=26.2` |
+| The loading overlay | `Minecraft.getOverlay()` | `Minecraft.gui.overlay()` | `GuiCompat.overlayShown`, `//? if >=26.2` |
+| Opening a screen | `Minecraft.setScreen(Screen)` | `Minecraft.gui.setScreen(Screen)` (same behaviour; `Minecraft.setScreenAndShow` is still there) | `GuiCompat.setScreen`, `//? if >=26.2` |
+
+Unchanged, checked with `javap` on the merged jars and by the Mixin audit: `PackSelectionScreen`, `PackSelectionModel`, `TransferableSelectionList` and its entries, `AbstractSelectionList`, `AbstractScrollArea` (all identical members), `MouseHandler.onButton`, `Screen.extractRenderState` / `keyPressed`, `GuiGraphicsExtractor`, `Window.handle()` and the size methods. The pack screen's own filter code changed internally (`filterEntries` takes a focus entry) without a visible effect.
+
+#### Verified
+- 2026-10-14, mod 1.0.0: Mixin audit and scripted gesture test (with the real input path, see the 26.3 entry) on both dev clients: all checks passed. `clean buildAndCollect` passes for all sixteen targets.
+- Manual packaged-JAR gesture test on 26.2: not done yet (Fabric ☐ NeoForge ☐).
+
 ### MC 26.1.2 — Fabric / NeoForge
 
 Targets: `26.1.2-fabric`, `26.1.2-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-13
