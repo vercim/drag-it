@@ -134,7 +134,7 @@ On each:
 - drag the Default pack over the available list and confirm the card and the list frame turn red, and that dropping there glides it back;
 - drop an incompatible pack into the enabled list and confirm the vanilla dialog;
 - repeat the basics on the data pack screen (create a world → Data Packs);
-- from 1.21.10: type into the search box so that a list shows fewer packs, confirm no pack can be lifted until the search is cleared, and that the arrows and clicks still work;
+- from 1.21.10: type into the search box so that a list shows fewer packs, drag, re-order and send packs between the lists, and confirm each pack lands next to the packs you see (and that dropping at the end of a list never puts a pack below the hidden Default pack); clear the search and confirm the order is what the drops produced;
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
 - confirm the mod list shows the pixel icon sharp (NeoForge: `logoBlur = false`).
 
