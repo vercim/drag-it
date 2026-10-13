@@ -6,6 +6,8 @@
 - Minecraft 1.21.11 on Fabric (Fabric Loader 0.17.3 or newer) and NeoForge (21.11.45 or newer), Java 21. Client side only.
 - Minecraft 26.1 on Fabric (Fabric Loader 0.18.3 or newer) and NeoForge (26.1.0.19-beta or newer), Java 25. Client side only.
 - Minecraft 26.1.2 on Fabric (Fabric Loader 0.18.4 or newer) and NeoForge (26.1.2.116 or newer), Java 25. Client side only.
+- Minecraft 26.2 on Fabric (Fabric Loader 0.18.4 or newer) and NeoForge (26.2.0.90 or newer), Java 25. Client side only.
+- Minecraft 26.3 on Fabric (Fabric Loader 0.19.3 or newer) and NeoForge (26.3.0.76 or newer), Java 25. Client side only.
 - On 1.21.10 and newer, packs are not lifted while the pack screen's search box hides some of them (the shown order would no longer match the real one); clear the search to drag again. Clicks and the arrows work as usual.
 - A refused drop turns the lifted card and the list red: holding the built-in Default pack over the available list, or several incompatible packs over the enabled list.
 
