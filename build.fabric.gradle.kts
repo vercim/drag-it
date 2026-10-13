@@ -45,7 +45,8 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings(loom.layered { officialMojangMappings() })
+    // From 26.1 Minecraft ships unobfuscated: there are no mappings to apply (the call returns null) and Loom does not remap.
+    loomx.applyMojangMappings()
     // No Fabric API: the mod only needs Fabric Loader and Mixin.
     modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader_version")}")
 }
@@ -76,8 +77,8 @@ tasks.jar {
 val verifyJar = tasks.register("verifyJar") {
     group = "verification"
     description = "Checks that the release JAR registers its Mixin config and contains everything the config names."
-    val releaseJar = tasks.named<AbstractArchiveTask>("remapJar").flatMap { it.archiveFile }
-    dependsOn("remapJar")
+    val releaseJar = loomx.modJar.flatMap { it.archiveFile }
+    dependsOn(loomx.modJar)
     doLast {
         ZipFile(releaseJar.get().asFile).use { zip ->
             fun text(path: String): String {
@@ -115,7 +116,7 @@ tasks.check { dependsOn(verifyJar) }
 tasks.register<Copy>("buildAndCollect") {
     group = "build"
     description = "Builds Fabric and copies its release JAR to the root build directory."
-    val releaseJar = tasks.named<AbstractArchiveTask>("remapJar")
+    val releaseJar = loomx.modJar
     dependsOn("build")
     from(releaseJar.flatMap { it.archiveFile })
     into(rootProject.layout.buildDirectory.dir("libs"))
@@ -126,7 +127,7 @@ tasks.register<Copy>("buildAndCollect") {
 fun Provider<String>.ifNotBlank(): Provider<String> = filter { it.isNotBlank() }
 
 publishMods {
-    val releaseJar = tasks.named<AbstractArchiveTask>("remapJar")
+    val releaseJar = loomx.modJar
     file.set(releaseJar.flatMap { it.archiveFile })
     version.set(publishVersion)
     changelog.set(providers.environmentVariable("RELEASE_CHANGELOG").orElse("See the GitHub release notes."))

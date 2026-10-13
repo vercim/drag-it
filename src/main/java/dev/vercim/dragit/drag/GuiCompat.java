@@ -1,6 +1,7 @@
 package dev.vercim.dragit.drag;
 
 import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
@@ -95,6 +96,15 @@ public final class GuiCompat {
 		context.fill(x, y + height - 1, x + width, y + height, color);
 		context.fill(x, y + 1, x + 1, y + height - 1, color);
 		context.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
+	}
+
+	/** Draws {@code text} without a shadow at {@code x, y} ({@code drawString} before 26.1, {@code text} from 26.1). */
+	public static void text(GuiGraphics context, Font font, String text, int x, int y, int color) {
+		//? if >=26.1 {
+		/*context.text(font, text, x, y, color, false);
+		*///?} else {
+		context.drawString(font, text, x, y, color, false);
+		//?}
 	}
 
 	/**

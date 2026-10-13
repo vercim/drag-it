@@ -16,12 +16,16 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 | `1.21.10-neoforge` | NeoForge | 21 |
 | `1.21.11-fabric` | Fabric | 21 |
 | `1.21.11-neoforge` | NeoForge | 21 |
+| `26.1-fabric` | Fabric | 25 |
+| `26.1-neoforge` | NeoForge | 25 |
+| `26.1.2-fabric` | Fabric | 25 |
+| `26.1.2-neoforge` | NeoForge | 25 |
 
-The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
+The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge, `java_version=25` for the 26.x targets) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
 
 ## Requirements
 
-- JDK 25+ to launch Gradle (Fabric Loom 1.18 refuses to load on anything older); the Java 21 toolchain that compiles the mod is provisioned automatically. CI installs both JDKs.
+- JDK 25+ to launch Gradle (Fabric Loom 1.18 refuses to load on anything older); the toolchain that compiles the mod (Java 21, or Java 25 for the 26.x targets) is provisioned automatically. CI installs JDK 21 and 25.
 - Windows: PowerShell, use `.\gradlew.bat`.
 - macOS / Linux: use `./gradlew` (run `chmod +x gradlew` if it is not executable).
 - To force a specific launcher JDK: macOS `export JAVA_HOME=$(/usr/libexec/java_home -v 25)`, Windows `$env:JAVA_HOME = "C:\path\to\jdk-25"`.
@@ -185,7 +189,7 @@ $env:MODRINTH_TOKEN = "x"
 ## Troubleshooting
 
 - **"Dependency requires at least JVM runtime version 25"** → Gradle was launched with an older JDK; launch it with JDK 25+ (`JAVA_HOME`, or `setup-java` in CI).
-- **Transparent world in dev** → Gradle is using the wrong JDK; use a Java 21 toolchain.
+- **Transparent world in dev** → Gradle is using the wrong JDK; use the target's own toolchain (Java 21, or 25 for 26.x).
 - **"Cannot find symbol" in a generated target** → check the active Stonecutter target and its conditional blocks, then re-sync Gradle.
 - **Wrong client runs, or "cannot find symbol" in `src/` right after switching target** → switch with `Set active project to <target>` (see [Commands](#commands)), not by editing `.sc_active_version`.
 - **`Permission denied` when moving or deleting source directories on Windows** → a Gradle daemon holds the files; run `.\gradlew.bat --stop`.
