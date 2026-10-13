@@ -81,15 +81,18 @@ final class DragRenderer {
 		for (int layer = Math.min(count - 1, 2); layer >= 1; layer--) {
 			// A dragged selection is shown as a small stack of cards under the one the cursor holds.
 			int o = Math.round(layer * 4 * lift);
-			context.fill(left + o, iy - 2 + o, right + o, iy + height + 2 + o, DragItSettings.GHOST_BACKGROUND);
-			GuiCompat.outline(context, left + o, iy - 2 + o, width, height + 4, scale(DragItSettings.INDICATOR_COLOR, 0.35 + 0.35 * lift));
+			double layerMix = c.blockedMix[layer];
+			int layerAccent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, layerMix);
+			int layerBackground = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, layerMix);
+			context.fill(left + o, iy - 2 + o, right + o, iy + height + 2 + o, layerBackground);
+			GuiCompat.outline(context, left + o, iy - 2 + o, width, height + 4, scale(layerAccent, 0.35 + 0.35 * lift));
 		}
 		for (int i = 5; i >= 1; i--) {
 			int alpha = (int) (lift * 22);
 			context.fill(left - i + 2, iy - 2 - i + 4, right + i + 2, iy + height + 2 + i + 4, alpha << 24);
 		}
-		int accent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, c.blockedMix);
-		int background = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, c.blockedMix);
+		int accent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, c.blockedMix[0]);
+		int background = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, c.blockedMix[0]);
 		context.fill(left, iy - 2, right, iy + height + 2, background);
 		GuiCompat.outline(context, left, iy - 2, width, height + 4, scale(accent, 0.35 + 0.55 * lift));
 
