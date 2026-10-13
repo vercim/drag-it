@@ -17,6 +17,7 @@
 - Sending a group to the other list with Enter, Space, or an arrow leaves the packs that cannot go (required or incompatible ones) where they are and drops them from the selection.
 - Only one list ever holds a selection: selecting something with the keyboard in the other list no longer leaves a highlighted pack behind in both lists.
 - When a dragged group is held over a list that cannot take some of its packs, the cards of those packs in the stack turn red (the rest stay blue); on drop they stay where they are and the others move.
+- Dropping a group of packs glides every card of the stack into its place; before, only the card under the cursor did and the others jumped to their new rows.
 
 ## [0.0.1-alpha] - 2026-10-11
 

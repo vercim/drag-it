@@ -49,27 +49,41 @@ final class DragRenderer {
 	}
 
 	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
+		// The rest of a dropped stack glides below the card the cursor held.
+		for (DragController.Follower f : c.followers) {
+			if (f.list >= 0) {
+				drawCard(c, context, delta, c.list(f.list), f.name, f.x, f.y, c.blockedMix[f.card], 1);
+			}
+		}
 		int listIndex = c.phase == DragController.Phase.DRAGGING ? c.srcList : c.settleList;
-		TransferableSelectionList list = c.list(listIndex);
-		int row = ListGeometry.indexOf(list, c.packId);
-		TransferableSelectionList.PackEntry entry = ListGeometry.find(list, c.packId);
+		int count = c.phase == DragController.Phase.DRAGGING ? c.dragIds.size() : 1;
+		drawCard(c, context, delta, c.list(listIndex), c.packId, c.ghostX, c.ghostY, c.blockedMix[0], count);
+	}
+
+	/** One lifted card; {@code count} above 1 stacks cards under it and puts the number of dragged packs on it. */
+	private static void drawCard(
+		DragController c, GuiGraphics context, float delta, TransferableSelectionList list, String name,
+		double gx, double gy, double blocked, int count
+	) {
+		int row = ListGeometry.indexOf(list, name);
+		TransferableSelectionList.PackEntry entry = ListGeometry.find(list, name);
 		if (row < 0 || entry == null) {
 			return;
 		}
 
 		int width = ListGeometry.cardWidth(list);
 		int height = ListGeometry.entryHeight(list);
-		int ix = (int) Math.floor(c.ghostX);
-		int iy = (int) Math.floor(c.ghostY);
-		float fx = (float) (c.ghostX - ix);
-		float fy = (float) (c.ghostY - iy);
+		int ix = (int) Math.floor(gx);
+		int iy = (int) Math.floor(gy);
+		float fx = (float) (gx - ix);
+		float fy = (float) (gy - iy);
 		float lift = (float) Math.max(0, Math.min(1, c.lift));
 
 		GuiCompat.push(context);
 		GuiCompat.raise(context);
 		float scale = 1.0F + (DragItSettings.GHOST_SCALE - 1.0F) * lift;
-		float pivotX = (float) (c.ghostX - 2 + width / 2.0);
-		float pivotY = (float) (c.ghostY + height / 2.0);
+		float pivotX = (float) (gx - 2 + width / 2.0);
+		float pivotY = (float) (gy + height / 2.0);
 		GuiCompat.translate(context, pivotX, pivotY);
 		GuiCompat.scale(context, scale, scale);
 		GuiCompat.translate(context, -pivotX, -pivotY);
@@ -77,7 +91,6 @@ final class DragRenderer {
 
 		int left = ix - 2;
 		int right = left + width;
-		int count = c.phase == DragController.Phase.DRAGGING ? c.dragIds.size() : 1;
 		for (int layer = Math.min(count - 1, 2); layer >= 1; layer--) {
 			// A dragged selection is shown as a small stack of cards under the one the cursor holds.
 			int o = Math.round(layer * 4 * lift);
@@ -91,8 +104,8 @@ final class DragRenderer {
 			int alpha = (int) (lift * 22);
 			context.fill(left - i + 2, iy - 2 - i + 4, right + i + 2, iy + height + 2 + i + 4, alpha << 24);
 		}
-		int accent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, c.blockedMix[0]);
-		int background = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, c.blockedMix[0]);
+		int accent = mix(DragItSettings.INDICATOR_COLOR, DragItSettings.BLOCKED_COLOR, blocked);
+		int background = mix(DragItSettings.GHOST_BACKGROUND, DragItSettings.GHOST_BLOCKED_BACKGROUND, blocked);
 		context.fill(left, iy - 2, right, iy + height + 2, background);
 		GuiCompat.outline(context, left, iy - 2, width, height + 4, scale(accent, 0.35 + 0.55 * lift));
 
