@@ -87,6 +87,68 @@ To find a renamed member when porting, compare the old and new mapping files fro
 
 ## Target entries
 
+### MC 26.1.2 — Fabric / NeoForge
+
+Targets: `26.1.2-fabric`, `26.1.2-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-13
+
+26.1.1 was skipped. Each JAR pins exactly its own Minecraft version, so the 26.1 JAR does not load on 26.1.2 and the other way round.
+
+#### Dependencies
+```properties
+java_version=25                     # versions/26.1.2-*/gradle.properties
+fabric_loader_version=0.19.5        # min 0.18.4 (versions/26.1.2-fabric/gradle.properties)
+neoforge_version=26.1.2.116         # versions/26.1.2-neoforge/gradle.properties
+neoforge_loader_version_range=[4,)
+minecraft_version_range=[26.1.2,26.1.3)   # NeoForge descriptor
+```
+Only the dev-runtime Fabric Loader 0.19.5 has been run; the 0.18.4 minimum is what Fabric API 0.155.3+26.1.2 requires, not a tested floor. NeoForge 26.1.2 builds from .71 on are releases (the earlier ones were betas).
+
+#### API differences (vs. 26.1)
+None. `javap` on the merged jars of 26.1 and 26.1.2 shows identical members for every class the mod touches (`PackSelectionScreen`, `PackSelectionModel` and its entries, `TransferableSelectionList` and its entries, `AbstractSelectionList`, `AbstractScrollArea`, `MouseHandler`, `Screen`, `GuiGraphicsExtractor`, `Window`, `Minecraft`, `Pack`). Everything in the [26.1 entry](#mc-261--fabric--neoforge) applies.
+
+#### Verified
+- 2026-10-13, mod 1.0.0: Mixin audit on the Fabric dev client clean (all eight target classes force-loaded, `DRAGIT_AUDIT_OK`, no mixin errors); on NeoForge the audit forced the classes that were not loaded yet, without errors in the log. Scripted gesture smoke test (see the [1.21.10 entry](#mc-12110--fabric--neoforge)) on the Fabric and NeoForge dev clients: all gesture checks passed (the NeoForge profile's built-in `mod_resources` pack shifts the script's expected positions, as before; one Fabric run had a single Esc check fail and passed on the repeat). `clean buildAndCollect` passes for all twelve targets.
+- Manual packaged-JAR gesture test on 26.1.2: not done yet (Fabric ☐ NeoForge ☐).
+
+### MC 26.1 — Fabric / NeoForge
+
+Targets: `26.1-fabric`, `26.1-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-13
+
+26.1 is the first release with the year-based version number. Minecraft ships **unobfuscated** from here on and needs **Java 25**. The GUI classes the mod hooks into were already in the 1.21.11 shape (input events, `Matrix3x2fStack`, entries that carry their own position, the search box), so the port is renames plus build setup. 26.1.1 was skipped.
+
+#### Dependencies
+```properties
+java_version=25                     # versions/26.1-*/gradle.properties
+fabric_loader_version=0.19.5        # min 0.18.3 (versions/26.1-fabric/gradle.properties)
+neoforge_version=26.1.0.19-beta     # versions/26.1-neoforge/gradle.properties
+neoforge_loader_version_range=[4,)
+minecraft_version_range=[26.1,26.1.1)   # NeoForge descriptor
+```
+Fabric Loom 1.18.4 builds both kinds of target; `loom-back-compat` applies `net.fabricmc.fabric-loom` (no remap) from 26.1. Only the dev-runtime Fabric Loader 0.19.5 has been run; the 0.18.3 minimum is what Fabric API 0.140.0+26.1 requires, not a tested floor. NeoForge has only betas for 26.1.0 (26.1.0.19-beta is the last). MixinExtras 0.5.5 in the Fabric dev runtime.
+
+#### API differences (vs. 1.21.11; everything else in the [1.21.11 entry](#mc-12111--fabric--neoforge) and the [1.21.10 entry](#mc-12110--fabric--neoforge) applies as well)
+| Area | 1.21.11 | 26.1 | Where / condition |
+|---|---|---|---|
+| Game and build | Loom remaps Mojang names to intermediary (`mappings(...)`, `remapJar`), Java 21 | unobfuscated: no mappings, no remap, the release JAR is the plain `jar`; Java 25 | `build.fabric.gradle.kts` through `loomx.applyMojangMappings()` and `loomx.modJar`; `java_version=25` in the target's `gradle.properties` |
+| GUI drawing class | `GuiGraphics` | `GuiGraphicsExtractor` | token swap in `stonecutter.gradle.kts` |
+| Screen hook | `Screen.render(GuiGraphics, int, int, float)` | `Screen.extractRenderState(GuiGraphicsExtractor, int, int, float)` | swap of the string `"render"`, `ScreenMixin` |
+| Entry drawing | `renderContent(GuiGraphics, int, int, boolean, float)` | `extractContent(GuiGraphicsExtractor, …)` | swap, `PackEntryMixin`, `GuiCompat.drawEntry` |
+| Selection frame | `AbstractSelectionList.renderSelection(GuiGraphics, E, int)` | `extractSelection(GuiGraphicsExtractor, E, int)` | swap, `TransferableSelectionListMixin` |
+| Drawing text | `GuiGraphics.drawString(font, text, x, y, color, shadow)` | `GuiGraphicsExtractor.text(...)` | `GuiCompat.text`, `//? if >=26.1` |
+| Scrollbar shown | `AbstractScrollArea.scrollbarVisible()` | `scrollable()` (same body: `maxScrollAmount() > 0`) | `mixin/accessor/AbstractScrollAreaAccessor.java`, `//? if >=26.1` |
+
+Unchanged, checked with `javap` on the merged jar and by the Mixin audit: `MouseHandler.onButton(long, MouseButtonInfo, int)` with `xpos` / `ypos`, `Window.handle()`, `Screen.keyPressed(KeyEvent)`, `mouseClicked` / `mouseReleased` with the event records, `PackSelectionScreen` (`availablePackList`, `selectedPackList`, `model`, `search`, `repositionElements`, `onClose`), `PackSelectionModel` (`selected`, `unselected`, `onListChanged` as a `Consumer<EntryBase>`, `updateRepoSelectedList`), `PackEntry` (`pack`, `parent`, `getPackId`), `TransferableSelectionList.screen` and `scrollBarX`, `AbstractSelectionList.defaultEntryHeight`, `AbstractScrollArea.scrollAmount` / `refreshScrollAmount`, `GuiGraphicsExtractor.fill` / `enableScissor` / `disableScissor` and `pose()` (still a `Matrix3x2fStack`). The arrow hit zones and list geometry follow the 1.21.11 rules.
+
+#### Quirks
+- A global `replacements.string` of Stonecutter covers the whole file, comments and the inactive side of conditions included, and runs in both directions. That is why the source tree (the vcs state, `1.21.1-fabric`) keeps the old names while any 26.x state shows the new ones. Switching between 26.x targets and back to the vcs target leaves no stray text even though `GuiGraphics` is a prefix of `GuiGraphicsExtractor` (checked: the diff after `Reset active project` holds only intended changes). Code written while a 26.x target is active must use the new names.
+- Run `Reset active project` before committing, as always: with a 26.x target active, the sources differ from the committed ones in dozens of lines.
+- A fresh dev profile opens the accessibility onboarding screen instead of the title screen, and it overrides a screen set by a script. Put `onboardAccessibility:false` into the profile's `options.txt` before a smoke test.
+- `GuiGraphicsExtractor.outline` exists, but `GuiCompat.outline` keeps drawing four `fill`s (same result, one code path for every version).
+
+#### Verified
+- 2026-10-13, mod 1.0.0: Mixin audit on the Fabric dev client clean (all eight target classes force-loaded, `DRAGIT_AUDIT_OK`, no mixin errors); on NeoForge the audit forced the classes that were not loaded yet, without errors in the log. Scripted gesture smoke test on the Fabric and NeoForge dev clients: all gesture checks passed (NeoForge: the built-in `mod_resources` pack shifts the script's expected positions, as before); screenshots show the lifted card, its count badge, the placeholder and the list frame drawn correctly. `clean buildAndCollect` passes for all twelve targets, and the 26.x JARs carry Java 25 classes and `java >=25`.
+- Manual packaged-JAR gesture test on 26.1: not done yet (Fabric ☐ NeoForge ☐).
+
 ### MC 1.21.11 — Fabric / NeoForge
 
 Targets: `1.21.11-fabric`, `1.21.11-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-12
@@ -160,7 +222,7 @@ Unchanged, checked by the Mixin audit and the smoke test: `PackSelectionScreen` 
 - `GuiGraphics.submitOutline` defers its box to the end of the frame, so outlines drawn for the cards of a dragged group ended up above the front card's fill. Drawing outlines with plain `fill`s keeps the order.
 - The first child of a pack list is now the title row, so row indices of the list's `children()` are one more than pack indices. All mod code counts packs only (`ListGeometry.entries`).
 - The NeoForge dev profile starts with a built-in `mod_resources` pack in the enabled list; it is not fixed-position, so it can be re-ordered like the others.
-- Test packs written for the dev client need `min_format` and `max_format` next to `pack_format` once the format is above 64; without them the pack is rejected ("missing mandatory fields").
+- Test packs written for the dev client need `min_format` and `max_format` next to `pack_format` once the format is above 64; without them the pack is rejected ("missing mandatory fields"). The pack format of a version is in its `version.json` (`pack_version`; 84 on 26.1).
 
 #### Scripted gesture smoke test (dev client)
 The Mixin audit proves mixins apply, not that gestures work. A temporary harness (not committed) drove the real `DragController` in the dev client of every target: it created five folder packs, opened `PackSelectionScreen` on the render thread (`Minecraft.execute`), set the pointer by writing `MouseHandler.xpos` / `ypos`, called `DragController.onMouseButton` / `onKey` / `onEscape`, took screenshots with `Screenshot.grab`, and compared the model's pack order after each gesture. Two small test mixins were needed: one makes `DragController.leftButtonHeld` return true while a scripted button is down (otherwise `beginFrame` treats the missing GLFW button as a lost release), the other drops real mouse movement and clicks while the script runs. Checked: every visible row hit-tests to itself at two scroll offsets; a pack dragged to the top, the end, and inside the enabled list lands at the exact gap; dropping outside both lists and Esc change nothing; Ctrl+click selects two packs, dragging one lifts both; Enter sends the group; a filtered list is not draggable.

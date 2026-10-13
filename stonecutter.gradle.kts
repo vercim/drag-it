@@ -9,6 +9,15 @@ stonecutter active file(".sc_active_version")
 
 stonecutter parameters {
     constants.match(current.project.substringAfterLast('-'), "fabric", "neoforge")
+
+    // Minecraft 26.1 renamed GuiGraphics to GuiGraphicsExtractor and "render" to "extract" in the GUI hooks the mod uses.
+    // These are pure renames, so the source keeps the older names and they are swapped in for 26.1 and newer.
+    replacements.string(current.parsed >= "26.1") {
+        replace("GuiGraphics", "GuiGraphicsExtractor")
+        replace("renderContent", "extractContent")
+        replace("renderSelection", "extractSelection")
+        replace("\"render\"", "\"extractRenderState\"")
+    }
 }
 
 tasks.register<org.gradle.api.tasks.Delete>("clean") {
