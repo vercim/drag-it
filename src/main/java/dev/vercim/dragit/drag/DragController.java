@@ -519,6 +519,7 @@ public final class DragController {
 			multiList = -1;
 		}
 		clearVanillaSelection(); // the multi-selection replaces vanilla's single highlight
+		focusList(id);
 	}
 
 	/** Ctrl+A: selects every movable pack of the list under the cursor (else of the list that already holds the selection). */
@@ -552,7 +553,8 @@ public final class DragController {
 
 	/**
 	 * Keyboard. Enter / Space send the selection to the other list (vanilla's Enter toggles the single selected pack,
-	 * so this is the same key for a whole selection); Ctrl+A selects all.
+	 * so this is the same key for a whole selection); Ctrl+A selects all. Nothing here fires while the search box has the
+	 * focus: the keys are its text then.
 	 *
 	 * @return true if the key was used
 	 */
@@ -564,15 +566,43 @@ public final class DragController {
 			if (keyCode == GuiCompat.KEY_A && GuiCompat.hasControl(modifiers)) {
 				return selectAll();
 			}
-			boolean toggle = keyCode == GuiCompat.KEY_ENTER || keyCode == GuiCompat.KEY_KP_ENTER || keyCode == GuiCompat.KEY_SPACE;
+			boolean space = keyCode == GuiCompat.KEY_SPACE;
+			boolean toggle = space || keyCode == GuiCompat.KEY_ENTER || keyCode == GuiCompat.KEY_KP_ENTER;
 			if (toggle && !multi.isEmpty()) {
 				moveSelection();
 				return true;
+			}
+			if (space) {
+				return toggleSingle();
 			}
 		} catch (RuntimeException e) {
 			fail(e);
 		}
 		return false;
+	}
+
+	/** Space on the single pack of vanilla's own selection: vanilla's pack list only reacts to Enter from 1.21.10, Space does the same here. */
+	private boolean toggleSingle() {
+		for (int i = 0; i < 2; i++) {
+			if (screen.getFocused() == list(i)) {
+				TransferableSelectionList.PackEntry entry = ListGeometry.selected(list(i));
+				if (entry != null) {
+					entry.keyboardSelection();
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Editing the selection counts as a click on the list: the keyboard focus leaves the search box (the mod swallows these
+	 * clicks, so vanilla never moves it), and Enter, Space and Ctrl+A then act on the selection instead of being its text.
+	 */
+	private void focusList(int id) {
+		if (screen.getFocused() != list(id)) {
+			screen.setFocused(list(id));
+		}
 	}
 
 	/** True when a plain click at {@code x, y} would hit the enable/disable arrow of this pack (vanilla's own hit zones). */
