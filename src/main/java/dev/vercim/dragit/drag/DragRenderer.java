@@ -129,6 +129,7 @@ final class DragRenderer {
 		}
 		if (count > 1) {
 			// Number of dragged packs, in the top-right corner of the card.
+			GuiCompat.raise(context); // older versions order by depth: the entry's title text would otherwise cover the badge
 			Font font = Minecraft.getInstance().font;
 			String label = String.valueOf(count);
 			int badgeWidth = font.width(label) + 8;
