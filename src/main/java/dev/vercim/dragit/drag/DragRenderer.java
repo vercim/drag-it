@@ -136,7 +136,7 @@ final class DragRenderer {
 			int bx = right - badgeWidth - 3;
 			int by = iy - 2 + 3;
 			context.fill(bx, by, bx + badgeWidth, by + 12, scale(DragItSettings.INDICATOR_COLOR, lift));
-			context.drawString(font, label, bx + 4, by + 2, 0xFFFFFFFF, false);
+			GuiCompat.text(context, font, label, bx + 4, by + 2, 0xFFFFFFFF);
 		}
 		GuiCompat.pop(context);
 	}
