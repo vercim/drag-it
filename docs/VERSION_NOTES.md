@@ -62,24 +62,6 @@ Targets: `X.Y.Z-fabric`, `X.Y.Z-neoforge` · first mod version: A.B.C · date: Y
 - YYYY-MM-DD, mod A.B.C: Fabric ☐ NeoForge ☐ (checklist in WORKFLOW.md → Packaged-JAR validation)
 ```
 
-## Porting checklist
-
-For each new version, after adding the target:
-
-- [ ] Add the target to `settings.gradle.kts`; configure its loader dependencies (loader build script, `gradle.properties`, or a Stonecutter property table once the matrix grows).
-- [ ] `PackSelectionScreen`: the `availablePackList`, `selectedPackList`, and `model` fields, `repositionElements()`, `onClose()`, `clearSelected()`.
-- [ ] `PackSelectionModel`: `selected`, `unselected`, `onListChanged`, `updateRepoSelectedList()`, and the `Entry` methods (`isFixedPosition`, `canSelect`, `canUnselect`, `select`, `unselect`, `getCompatibility`).
-- [ ] `TransferableSelectionList` and `PackEntry`: the `render` signature, `renderSelection`, the `screen`, `pack`, and `parent` fields, `getScrollbarPosition`, `getPackId`.
-- [ ] `AbstractSelectionList`: `itemHeight`, `headerHeight`, `scrollbarVisible()` (check which class declares it), and the scroll API used by auto-scroll (`ListGeometry.scrollAmount` / `clampScroll`, `setScrollAmount`).
-- [ ] `MouseHandler.onPress` signature and the `minecraft` / `xpos` / `ypos` fields; `Screen.render` and `Screen.keyPressed` signatures.
-- [ ] `Window` size methods (`getScreenWidth` vs. `getWidth`), `GuiGraphics` drawing calls (`fill`, scissor, `pose()` type: `PoseStack` vs. a 2D stack).
-- [ ] Express differences with narrow Stonecutter conditions, not copied files.
-- [ ] Mixin config registered for both loaders in the packaged JAR (`verifyJar` passes).
-- [ ] Run the [Mixin audit](#mixin-audit) on both loaders, then the whole packaged-JAR checklist, including the data pack screen.
-- [ ] Add the target to CI artifact validation (it counts targets automatically) and to the release acceptance matrix.
-- [ ] Fill this file's entry for the version; add a `CHANGELOG.md` line under `Compatibility`.
-
-Likely trouble spots, in order: `PackEntry.render` / `renderContent` and `TransferableSelectionList` (the list widgets were reworked in several releases: where a row's position comes from, whether the title is a child, what `children()` and `getSelected()` return), then the input events (`MouseHandler`, `Screen.keyPressed`, `mouseClicked`), `PackSelectionModel` internals, and `GuiGraphics` (matrix stack, outlines); then loader metadata and dependency version ranges. Also check whether the pack screen gained a way to show fewer packs than the model holds (the 1.21.10 search box): the drop logic counts on the lists matching the model.
 
 ## Mixin audit
 
