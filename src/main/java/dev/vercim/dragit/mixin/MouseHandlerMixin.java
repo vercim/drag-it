@@ -9,7 +9,6 @@ import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 //? if >=1.21.10 {
 /*import net.minecraft.client.input.MouseButtonInfo;
 *///?}
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -46,7 +45,7 @@ public abstract class MouseHandlerMixin {
 
 	@Unique
 	private void dragit$handle(long window, int button, int action, int mods, CallbackInfo ci) {
-		if (!(this.minecraft.screen instanceof PackSelectionScreen screen) || this.minecraft.getOverlay() != null) {
+		if (!(GuiCompat.screen(this.minecraft) instanceof PackSelectionScreen screen) || GuiCompat.overlayShown(this.minecraft)) {
 			return;
 		}
 		Window w = this.minecraft.getWindow();
@@ -55,7 +54,7 @@ public abstract class MouseHandlerMixin {
 		}
 		double guiX = this.xpos * w.getGuiScaledWidth() / w.getScreenWidth();
 		double guiY = this.ypos * w.getGuiScaledHeight() / w.getScreenHeight();
-		if (DragController.of(screen).onMouseButton(guiX, guiY, button, action == GLFW.GLFW_PRESS, mods)) {
+		if (DragController.of(screen).onMouseButton(guiX, guiY, button, GuiCompat.isPress(action), mods)) {
 			ci.cancel();
 		}
 	}

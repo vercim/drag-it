@@ -22,7 +22,6 @@ import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * Drag & drop state machine of one {@link PackSelectionScreen}.
@@ -221,7 +220,7 @@ public final class DragController {
 	 *
 	 * @return true if the event was consumed and must not reach vanilla
 	 */
-	/** @param mods GLFW modifier bits of the event (Shift selects several packs, Ctrl sends them to the other list) */
+	/** @param mods modifier bits of the event (Shift selects several packs, Ctrl sends them to the other list) */
 	public boolean onMouseButton(double x, double y, int button, boolean pressed, int mods) {
 		if (!ready()) {
 			return false;
@@ -240,15 +239,15 @@ public final class DragController {
 		if (phase == Phase.PENDING || phase == Phase.DRAGGING) {
 			return true; // another button during our gesture: ignore it completely
 		}
-		if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+		if (button != GuiCompat.MOUSE_LEFT) {
 			return false;
 		}
 		if (phase == Phase.SETTLING) {
 			finishSettle();
 		}
 		swallowRelease = false;
-		boolean ctrl = (mods & GLFW.GLFW_MOD_CONTROL) != 0;
-		boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
+		boolean ctrl = GuiCompat.hasControl(mods);
+		boolean shift = GuiCompat.hasShift(mods);
 		Grab grab = findGrabbable(x, y);
 		if (grab != null && (ctrl || shift)) {
 			modifierClick(grab, ctrl, shift);
@@ -276,7 +275,7 @@ public final class DragController {
 	}
 
 	private boolean onRelease(double x, double y, int button) {
-		if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+		if (button != GuiCompat.MOUSE_LEFT) {
 			return false;
 		}
 		buttonDown = false;
@@ -578,10 +577,10 @@ public final class DragController {
 			return false;
 		}
 		try {
-			if (keyCode == GLFW.GLFW_KEY_A && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
+			if (keyCode == GuiCompat.KEY_A && GuiCompat.hasControl(modifiers)) {
 				return selectAll();
 			}
-			boolean toggle = keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER || keyCode == GLFW.GLFW_KEY_SPACE;
+			boolean toggle = keyCode == GuiCompat.KEY_ENTER || keyCode == GuiCompat.KEY_KP_ENTER || keyCode == GuiCompat.KEY_SPACE;
 			if (toggle && !multi.isEmpty()) {
 				moveSelection();
 				return true;
@@ -724,8 +723,8 @@ public final class DragController {
 			readPointer();
 			pruneMulti();
 			updateHighlightAlpha();
-			if ((phase == Phase.PENDING || phase == Phase.DRAGGING) && !leftButtonHeld()) {
-				onRelease(pointerX, pointerY, GLFW.GLFW_MOUSE_BUTTON_LEFT); // release event got lost (focus change etc.)
+			if ((phase == Phase.PENDING || phase == Phase.DRAGGING) && !GuiCompat.leftButtonHeld()) {
+				onRelease(pointerX, pointerY, GuiCompat.MOUSE_LEFT); // release event got lost (focus change etc.)
 			}
 			switch (phase) {
 				case PENDING -> tickPending();
@@ -757,10 +756,6 @@ public final class DragController {
 		Window window = client.getWindow();
 		pointerX = client.mouseHandler.xpos() * window.getGuiScaledWidth() / window.getScreenWidth();
 		pointerY = client.mouseHandler.ypos() * window.getGuiScaledHeight() / window.getScreenHeight();
-	}
-
-	private static boolean leftButtonHeld() {
-		return GLFW.glfwGetMouseButton(GuiCompat.handle(Minecraft.getInstance().getWindow()), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 	}
 
 	private double thresholdGui() {
@@ -1162,8 +1157,8 @@ public final class DragController {
 	private void confirmIncompatible(PackSelectionModel.Entry pack, Pack profile, int gap) {
 		Minecraft client = Minecraft.getInstance();
 		Component message = pack.getCompatibility().getConfirmation();
-		client.setScreen(new ConfirmScreen(confirmed -> {
-			client.setScreen(screen);
+		GuiCompat.setScreen(client, new ConfirmScreen(confirmed -> {
+			GuiCompat.setScreen(client, screen);
 			if (confirmed) {
 				crossList(List.of(pack), List.of(profile), SELECTED, gap);
 				ListGeometry.clampScroll(list(AVAILABLE));

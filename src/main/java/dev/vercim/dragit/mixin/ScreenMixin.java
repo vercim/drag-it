@@ -1,13 +1,13 @@
 package dev.vercim.dragit.mixin;
 
 import dev.vercim.dragit.drag.DragController;
+import dev.vercim.dragit.drag.GuiCompat;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 //? if >=1.21.10 {
 /*import net.minecraft.client.input.KeyEvent;
 *///?}
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -53,7 +53,7 @@ public abstract class ScreenMixin {
 			return;
 		}
 		DragController controller = DragController.of(screen);
-		if (keyCode == GLFW.GLFW_KEY_ESCAPE ? controller.onEscape() : controller.onKey(keyCode, modifiers)) {
+		if (keyCode == GuiCompat.KEY_ESCAPE ? controller.onEscape() : controller.onKey(keyCode, modifiers)) {
 			cir.setReturnValue(true); // Esc cancels the drag (the screen stays open); Ctrl+A / Enter act on the selection
 		}
 	}

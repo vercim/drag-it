@@ -1,6 +1,8 @@
 package dev.vercim.dragit.drag;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -9,7 +11,11 @@ import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 /*import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 *///?}
+//? if >=26.3 {
+/*import org.lwjgl.sdl.SDLMouse;
+*///?} else {
 import org.lwjgl.glfw.GLFW;
+//?}
 
 /**
  * Drawing and window calls whose names or shapes differ between Minecraft versions, so the rest of the mod stays version-free.
@@ -18,6 +24,70 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class GuiCompat {
 	private GuiCompat() {
+	}
+
+	// ---------------------------------------------------------------- input constants
+
+	/** Left mouse button (a button number, as in the button events). */
+	public static final int MOUSE_LEFT = InputConstants.MOUSE_BUTTON_LEFT;
+	public static final int KEY_ESCAPE = InputConstants.KEY_ESCAPE;
+	public static final int KEY_ENTER = InputConstants.KEY_RETURN;
+	public static final int KEY_KP_ENTER = InputConstants.KEY_NUMPADENTER;
+	public static final int KEY_SPACE = InputConstants.KEY_SPACE;
+	public static final int KEY_A = InputConstants.KEY_A;
+
+	/** The button or key action of an event is a press (not a release or a repeat). */
+	public static boolean isPress(int action) {
+		return action == InputConstants.PRESS;
+	}
+
+	public static boolean hasControl(int modifiers) {
+		return (modifiers & InputConstants.MOD_CONTROL) != 0;
+	}
+
+	public static boolean hasShift(int modifiers) {
+		//? if >=26.3 {
+		/*return (modifiers & InputConstants.MOD_SHIFT) != 0;
+		*///?} else {
+		return (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+		//?}
+	}
+
+	/** Asks the platform whether the left mouse button is down right now (vanilla stops tracking it once the mod swallows a press). */
+	public static boolean leftButtonHeld() {
+		//? if >=26.3 {
+		/*return (SDLMouse.SDL_GetMouseState(null, null) & SDLMouse.SDL_BUTTON_LMASK) != 0;
+		*///?} else {
+		return GLFW.glfwGetMouseButton(handle(Minecraft.getInstance().getWindow()), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+		//?}
+	}
+
+	// ---------------------------------------------------------------- screen access
+
+	/** The screen that is open, or {@code null} ({@code Minecraft.screen} up to 26.1, {@code gui.screen()} from 26.2). */
+	public static Screen screen(Minecraft minecraft) {
+		//? if >=26.2 {
+		/*return minecraft.gui.screen();
+		*///?} else {
+		return minecraft.screen;
+		//?}
+	}
+
+	/** A loading overlay covers the screen. */
+	public static boolean overlayShown(Minecraft minecraft) {
+		//? if >=26.2 {
+		/*return minecraft.gui.overlay() != null;
+		*///?} else {
+		return minecraft.getOverlay() != null;
+		//?}
+	}
+
+	public static void setScreen(Minecraft minecraft, Screen screen) {
+		//? if >=26.2 {
+		/*minecraft.gui.setScreen(screen);
+		*///?} else {
+		minecraft.setScreen(screen);
+		//?}
 	}
 
 	/** GLFW handle of the window. */
@@ -32,18 +102,18 @@ public final class GuiCompat {
 	/** Replays a left-button press that the mod held back, so that vanilla handles it as an ordinary click. */
 	public static void click(Screen screen, double x, double y) {
 		//? if >=1.21.10 {
-		/*screen.mouseClicked(new MouseButtonEvent(x, y, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0)), false);
+		/*screen.mouseClicked(new MouseButtonEvent(x, y, new MouseButtonInfo(MOUSE_LEFT, 0)), false);
 		*///?} else {
-		screen.mouseClicked(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+		screen.mouseClicked(x, y, MOUSE_LEFT);
 		//?}
 	}
 
 	/** Left-button release matching {@link #click}. */
 	public static void release(Screen screen, double x, double y) {
 		//? if >=1.21.10 {
-		/*screen.mouseReleased(new MouseButtonEvent(x, y, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0)));
+		/*screen.mouseReleased(new MouseButtonEvent(x, y, new MouseButtonInfo(MOUSE_LEFT, 0)));
 		*///?} else {
-		screen.mouseReleased(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+		screen.mouseReleased(x, y, MOUSE_LEFT);
 		//?}
 	}
 
