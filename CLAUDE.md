@@ -25,6 +25,7 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 
 ## Rules that must not be forgotten
 
+- When adding support for a new Minecraft version or loader, run the scripted gesture test on the dev client of **every** new target (both loaders), each at least once, before calling the port done. A build, `verifyJar` or the Mixin audit does not count, and a target with no run recorded in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md) is untested; say so instead of writing "all passed".
 - IDE-only runs prove nothing about loader integration; validate the packaged JAR from `build/libs/` in a clean client profile (steps in [docs/WORKFLOW.md](docs/WORKFLOW.md)).
 - Both JARs must register `dragit.mixins.json` and contain every mixin class, and loader-specific files must be absent from the other loader's JAR. `verifyJar` (part of `build`) enforces this; a missing registration makes the mod load while every injection silently does nothing.
 - Mixin target strings are **not** checked at compile time: a wrong method or field name still builds and only fails when the game applies the mixin. After touching a target string or porting, check it in a running client (see "Mixin audit" in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
