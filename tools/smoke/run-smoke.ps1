@@ -12,6 +12,9 @@
 .PARAMETER Targets
   Targets to test, for example 1.21.4-neoforge 26.3-fabric. Default: every folder in versions/.
 
+.PARAMETER Only
+  Run one section of the harness instead of everything. Supported: K (a group sent back and forth with the keyboard), V (screenshots of the selection outlines in motion).
+
 .PARAMETER Install
   Only copy the harness into src/ (for a run from the IDE) and exit.
 
@@ -23,6 +26,7 @@
 #>
 param(
     [string[]]$Targets,
+    [string]$Only,
     [switch]$Install,
     [switch]$Uninstall,
     [int]$TimeoutMinutes = 10
@@ -120,6 +124,8 @@ try {
             New-Item -ItemType Directory -Force $run | Out-Null
             Remove-Item (Join-Path $run 'smoke.log'), (Join-Path $run 'screenshots'), (Join-Path $run 'logs\latest.log') -Recurse -Force -ErrorAction SilentlyContinue
             Set-Content -Path (Join-Path $run 'smoke.format') -Value $packFormats[$mc]
+            Remove-Item (Join-Path $run 'smoke.only') -Force -ErrorAction SilentlyContinue
+            if ($Only) { Set-Content -Path (Join-Path $run 'smoke.only') -Value $Only }
             # a fresh profile opens the accessibility onboarding instead of the title screen; keep the rest of options.txt.
             # The client also runs muted: a test run clicks and drags for minutes.
             $opts = Join-Path $run 'options.txt'
@@ -153,7 +159,7 @@ try {
                 elseif (-not $done)        { $status = 'INCOMPLETE'; $note = 'no DONE line' }
                 elseif ($fail -gt 0)       { $status = 'FAIL'; $note = 'see versions\' + $t + '\run\smoke.log' }
                 elseif ($mixinErrors -gt 0){ $status = 'MIXIN-ERROR'; $note = "$mixinErrors error line(s) in latest.log" }
-                elseif ($pass -eq 0)       { $status = 'NO-CHECKS'; $note = 'DONE but no PASS line' }
+                elseif ($pass -eq 0 -and $Only -ne 'V') { $status = 'NO-CHECKS'; $note = 'DONE but no PASS line' } # V only takes screenshots
                 else                       { $status = 'OK' }
             }
         } catch {

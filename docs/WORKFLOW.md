@@ -124,12 +124,13 @@ A change is ready to merge when:
 
 ## Scripted gesture test
 
-A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` holds a harness that starts the real dev client, opens the resource pack screen, plays gestures through the real input path (drag, Ctrl+click groups, Enter, Space, Ctrl+A, Esc, the search box from 1.21.10) and compares the pack order after each one. It is not part of the mod: `run-smoke.ps1` copies it into `src/` for a run and removes it again, so it never reaches a JAR.
+A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` holds a harness that starts the real dev client, opens the resource pack screen, plays gestures through the real input path (drag, Ctrl+click groups, Enter back and forth, Space, Ctrl+A, Esc, the search box from 1.21.10) and compares the pack order after each one. It is not part of the mod: `run-smoke.ps1` copies it into `src/` for a run and removes it again, so it never reaches a JAR.
 
 ```powershell
 .\tools\smoke\run-smoke.ps1                        # every target in versions/, one after the other
 .\tools\smoke\run-smoke.ps1 -Targets 1.21.4-neoforge,26.3-fabric   # chosen targets only (comma-separated: a space makes PowerShell bind the second name to another parameter)
 .\tools\smoke\run-smoke.ps1 -Uninstall            # clean up after a run that was killed
+.\tools\smoke\run-smoke.ps1 -Only K -Targets 26.3-fabric   # one section only: K = a group sent back and forth with Enter, V = screenshots of the selection outlines in motion (run\screenshots)
 ```
 
 - Close every running dev client and Gradle run first; a running one holds the Gradle lock.
