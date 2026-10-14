@@ -205,6 +205,18 @@ final class ListGeometry {
 		return cardRight(list) - cellLeft(list);
 	}
 
+	/**
+	 * How far the drop placeholder sits inside the zone frame on each side, so it looks the same on every version. From 1.21.10
+	 * a row's cell already starts two pixels inside the list; before that it is flush with the frame and the placeholder is pulled in.
+	 */
+	static int placeholderInset() {
+		//? if >=1.21.10 {
+		/*return 0;
+		*///?} else {
+		return 2;
+		//?}
+	}
+
 	/** Index of the pack row under the point, using vanilla's own hit test; {@code -1} if none. */
 	static int hit(TransferableSelectionList list, double x, double y) {
 		//? if >=1.21.10 {

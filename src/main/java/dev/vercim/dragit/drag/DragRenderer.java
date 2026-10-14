@@ -32,8 +32,9 @@ final class DragRenderer {
 
 		int right = ListGeometry.frameRight(list);
 		context.enableScissor(ListGeometry.left(list), ListGeometry.top(list), right, ListGeometry.bottom(list));
-		int x = ListGeometry.cellLeft(list);
-		int width = ListGeometry.cardWidth(list);
+		int inset = ListGeometry.placeholderInset();
+		int x = ListGeometry.cellLeft(list) + inset;
+		int width = ListGeometry.cardWidth(list) - 2 * inset;
 		int top = (int) Math.round(ListGeometry.originY(list) + indicator.y);
 		if (indicator.block == DropTarget.Block.PINNED) {
 			context.fill(x, top - 3, x + width, top - 1, scale(color, a));

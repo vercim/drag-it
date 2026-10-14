@@ -15,6 +15,7 @@
 - Space sends the selected pack to the other list, as Enter does (From Minecraft 1.21.10 vanilla only reacts to Enter).
 - Enter and Space now work right after Ctrl+click or Shift+click even if the search box still had the keyboard focus (1.21.10 and newer).
 - Drag & drop works while the search box is in use (1.21.10 and newer)
+- The drop placeholder keeps the same two-pixel margin from the list frame on every version; before 1.21.10 it touched the frame.
 ## [0.0.1-alpha] - 2026-10-11
 
 ### Overall
