@@ -120,6 +120,21 @@ A change is ready to merge when:
 - `verifyJar` passes on every target;
 - behavior stays compatible with the previous release.
 
+## Scripted gesture test
+
+A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` holds a harness that starts the real dev client, opens the resource pack screen, plays gestures through the real input path (drag, Ctrl+click groups, Enter, Space, Ctrl+A, Esc, the search box from 1.21.10) and compares the pack order after each one. It is not part of the mod: `run-smoke.ps1` copies it into `src/` for a run and removes it again, so it never reaches a JAR.
+
+```powershell
+.\tools\smoke\run-smoke.ps1                        # every target in versions/, one after the other
+.\tools\smoke\run-smoke.ps1 1.21.4-neoforge 26.3-fabric   # chosen targets only
+.\tools\smoke\run-smoke.ps1 -Uninstall            # clean up after a run that was killed
+```
+
+- Close every running dev client and Gradle run first; a running one holds the Gradle lock.
+- Each target takes a few minutes. The script prints one verdict per target (`OK`, `FAIL`, `NO-LOG`, `INCOMPLETE`, `TIMEOUT`, `MIXIN-ERROR`, ...), writes `build/smoke/summary.txt`, and exits non-zero unless every target is `OK`. Details are in `versions/<target>/run/smoke.log` and `build/smoke/<target>.*.log`.
+- A new target needs its `pack_format` in the table at the top of `run-smoke.ps1`; the script refuses to run a target it has no format for.
+- When adding a Minecraft version or loader, run it for **every** new target and record the result in [VERSION_NOTES.md](VERSION_NOTES.md). The script is Windows-only (like the `.\gradlew.bat` commands here).
+
 ## Packaged-JAR validation
 
 IDE runs are not enough for loader or Mixin changes. Before releasing, with a clean client profile and only the JAR from `build/libs/`:
@@ -140,7 +155,7 @@ On each:
 - repeat the basics on the data pack screen (create a world → Data Packs);
 - from 1.21.10: type into the search box so that a list shows fewer packs, drag, re-order and send packs between the lists, and confirm each pack lands next to the packs you see (and that dropping at the end of a list never puts a pack below the hidden Default pack); clear the search and confirm the order is what the drops produced;
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
-- confirm the mod list shows the pixel icon sharp (NeoForge: `logoBlur = false`).
+- confirm the mod list shows the pixel icon sharp (NeoForge: `iconBlur = false` from 26.2, `logoBlur = false` before), and that 26.2+ shows no "deprecated `logoFile`" loading warning.
 
 ## Changelog
 

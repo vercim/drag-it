@@ -14,6 +14,8 @@
 - Selecting a pack in one list no longer leaves a highlighted pack behind in the other.
 - Sending a group to the other list: packs that cannot go (required or incompatible ones) stay where they are and leave the selection.
 - Dropping a group now glides every card into its place; before, only the card under the cursor did and the others jumped.
+- Space sends the selected pack to the other list, as Enter does. From Minecraft 1.21.10 vanilla only reacts to Enter.
+- Enter and Space now work right after Ctrl+click or Shift+click even if the search box still had the keyboard focus (1.21.10 and newer).
 
 ## [0.0.1-alpha] - 2026-10-11
 
