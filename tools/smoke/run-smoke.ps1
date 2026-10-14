@@ -13,7 +13,7 @@
   Targets to test, for example 1.21.4-neoforge 26.3-fabric. Default: every folder in versions/.
 
 .PARAMETER Only
-  Run one section of the harness instead of everything. Supported: K (a group sent back and forth with the keyboard), V (screenshots of the selection outlines in motion).
+  Run one section of the harness instead of everything. Supported: K (a group sent back and forth with the keyboard), A (a pack sent across with a click on its arrow), V (screenshots of the selection outlines in motion).
 
 .PARAMETER Install
   Only copy the harness into src/ (for a run from the IDE) and exit.
