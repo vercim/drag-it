@@ -679,6 +679,9 @@ public final class DragController {
 			clearMulti();
 		} else {
 			multiList = to;
+			// From 1.21.10 every rebuild of the lists that vanilla runs for a moved pack also selects that pack in its list. The
+			// group keeps the selection, and a leftover single one would be taken for a click on that pack, which ends the group.
+			clearVanillaSelection();
 		}
 	}
 
