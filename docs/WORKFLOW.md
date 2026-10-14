@@ -130,7 +130,7 @@ A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` ho
 .\tools\smoke\run-smoke.ps1                        # every target in versions/, one after the other
 .\tools\smoke\run-smoke.ps1 -Targets 1.21.4-neoforge,26.3-fabric   # chosen targets only (comma-separated: a space makes PowerShell bind the second name to another parameter)
 .\tools\smoke\run-smoke.ps1 -Uninstall            # clean up after a run that was killed
-.\tools\smoke\run-smoke.ps1 -Only K -Targets 26.3-fabric   # one section only: K = a group sent back and forth with Enter, V = screenshots of the selection outlines in motion (run\screenshots)
+.\tools\smoke\run-smoke.ps1 -Only K -Targets 26.3-fabric   # one section only: K = a group sent back and forth with Enter, A = a pack sent across with a click on its arrow, V = screenshots of the selection outlines in motion (run\screenshots)
 ```
 
 - Close every running dev client and Gradle run first; a running one holds the Gradle lock.
