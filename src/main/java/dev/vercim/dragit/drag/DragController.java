@@ -97,7 +97,7 @@ public final class DragController {
 
 	private final Set<String> multi = new LinkedHashSet<>();
 	private final SelectionBands bands = new SelectionBands(false);
-	/** Vanilla's one-pack selection: one frame per list that glides to the selected pack. */
+	/** Vanilla's one-pack selection: one frame per list that fades in on the selected pack and never moves. */
 	private final SelectionBands frames = new SelectionBands(true);
 	/** The multi-selection as the outline bands last saw it, to tell an edit of the selection from packs merely changing lists. */
 	private final Set<String> bandSelection = new HashSet<>();
@@ -378,9 +378,9 @@ public final class DragController {
 	}
 
 	/**
-	 * Same for vanilla's single selection (the white frame), which the mod draws itself so that it can glide from pack to pack
-	 * instead of vanishing at one and appearing at the other. Vanilla's colours: a white border while the list has the keyboard
-	 * focus, grey otherwise, on black.
+	 * Same for vanilla's single selection (the white frame), which the mod draws itself so that it fades in instead of appearing
+	 * at once, and slides with its row. Vanilla's colours: a white border while the list has the keyboard focus, grey otherwise,
+	 * on black.
 	 */
 	public void drawSingleSelection(GuiGraphics context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
 		int list = listOf(widget);

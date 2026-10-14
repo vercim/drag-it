@@ -29,8 +29,6 @@ final class SelectionBands {
 	private static final double REST_SPEED = 0.05;
 	/** Tolerance (in rows) when deciding that one band lies inside another. */
 	private static final double COVER = 0.02;
-	/** A faded-out frame (opacity below this) is not worth flying to a new selection; a fresh one fades in there instead. */
-	private static final double ADOPTABLE = 0.05;
 
 	/** One value that approaches its target along a critically damped spring and keeps its velocity across new targets. */
 	static final class Spring {
@@ -119,15 +117,15 @@ final class SelectionBands {
 	}
 
 	private final List<List<Band>> bands = List.of(new ArrayList<>(), new ArrayList<>());
-	private final boolean follow;
+	private final boolean single;
 
 	/**
-	 * @param follow the selection is a single frame that moves to wherever the selection goes (vanilla's own one-pack selection);
-	 *               the frame does not open up around its pack but fades in once, and a new run takes over the band of the old one
-	 *               even when they share no pack. Without it (the multi-selection) a run only continues a band it overlaps.
+	 * @param single the selection is a single frame (vanilla's own one-pack selection): it never moves and does not open up around
+	 *               its pack. A frame whose pack is no longer selected vanishes at once, and the frame of a newly selected pack
+	 *               only fades in where it is. Without it (the multi-selection) the outline glides and fades out.
 	 */
-	SelectionBands(boolean follow) {
-		this.follow = follow;
+	SelectionBands(boolean single) {
+		this.single = single;
 	}
 
 	List<Band> bands(int list) {
@@ -173,27 +171,15 @@ final class SelectionBands {
 				carriers.put(match.run(), match.band());
 			}
 		}
-		if (follow) {
-			// A lone frame moves on: the run takes the most visible band that has nothing to follow any more.
-			for (Run run : runs) {
-				Band best = null;
-				for (Band band : bands) {
-					if (!taken.contains(band) && band.fade.value > ADOPTABLE && (best == null || band.fade.value > best.fade.value)) {
-						best = band;
-					}
-				}
-				if (!carriers.containsKey(run) && best != null) {
-					carriers.put(run, best);
-					taken.add(best);
-				}
-			}
+		if (single) {
+			bands.removeIf(band -> !taken.contains(band));
 		}
 
 		// Spawn first: a run split off a band copies that band's edges as they were before this frame retargets it.
 		List<Band> created = new ArrayList<>();
 		for (Run run : runs) {
 			if (!carriers.containsKey(run)) {
-				created.add(spawn(run, names, index, bands, edited, seed, follow));
+				created.add(spawn(run, names, index, bands, edited, seed, single));
 			}
 		}
 		for (Map.Entry<Run, Band> entry : carriers.entrySet()) {
@@ -279,7 +265,7 @@ final class SelectionBands {
 		band.bottomOffset.value = bottom - run.end();
 	}
 
-	private static Band spawn(Run run, List<String> names, Map<String, Integer> index, List<Band> existing, boolean edited, String seed, boolean follow) {
+	private static Band spawn(Run run, List<String> names, Map<String, Integer> index, List<Band> existing, boolean edited, String seed, boolean single) {
 		Band source = null; // a band that outlined these packs together with others: the run was split off it
 		int best = 0;
 		for (Band band : existing) {
@@ -305,7 +291,7 @@ final class SelectionBands {
 				band.bottomOffset.velocity = source.bottomOffset.velocity;
 			}
 			band.fade.velocity = source.fade.velocity;
-		} else if (follow) {
+		} else if (single) {
 			top = run.start();
 			bottom = run.end();
 			alpha = 0.0;
