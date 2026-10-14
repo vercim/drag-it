@@ -120,11 +120,12 @@ try {
             New-Item -ItemType Directory -Force $run | Out-Null
             Remove-Item (Join-Path $run 'smoke.log'), (Join-Path $run 'screenshots'), (Join-Path $run 'logs\latest.log') -Recurse -Force -ErrorAction SilentlyContinue
             Set-Content -Path (Join-Path $run 'smoke.format') -Value $packFormats[$mc]
-            # a fresh profile opens the accessibility onboarding instead of the title screen; keep the rest of options.txt
+            # a fresh profile opens the accessibility onboarding instead of the title screen; keep the rest of options.txt.
+            # The client also runs muted: a test run clicks and drags for minutes.
             $opts = Join-Path $run 'options.txt'
             $lines = @()
-            if (Test-Path $opts) { $lines = @(Get-Content $opts | Where-Object { $_ -notmatch '^onboardAccessibility:' }) }
-            Set-Content -Path $opts -Value ($lines + 'onboardAccessibility:false')
+            if (Test-Path $opts) { $lines = @(Get-Content $opts | Where-Object { $_ -notmatch '^(onboardAccessibility|soundCategory_master):' }) }
+            Set-Content -Path $opts -Value ($lines + 'onboardAccessibility:false' + 'soundCategory_master:0.0')
 
             $gr = Invoke-Gradle ":${t}:runClient --console=plain" (Join-Path $outDir "$t.gradle") ($TimeoutMinutes * 60 * 1000)
             if ($gr.TimedOut) {
