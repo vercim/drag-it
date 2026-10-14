@@ -135,13 +135,9 @@ public abstract class PackEntryMixin {
 		int top = y - 2;
 		int bottom = y + entryHeight + 2;
 
-		float single = controller.selectionAlpha(widget, name);
-		if (single > 0.004F) {
-			int border = widget.isFocused() ? 0xFFFFFFFF : 0xFF808080; // vanilla's focused / unfocused frame colour
-			dragit$frame(context, left, top, right, bottom, border, 0xFF000000, single);
-		}
-
-		// The multi-selection is one animated outline per run of rows; this row draws the slice of it that lies on it.
+		// Both selections are animated outlines (vanilla's single frame, and one per run of rows for the multi-selection);
+		// this row draws the slice of each that lies on it.
+		controller.drawSingleSelection(context, widget, index, left, top, right, bottom);
 		controller.drawMultiSelection(context, widget, index, left, top, right, bottom);
 		return state;
 	}
@@ -162,21 +158,5 @@ public abstract class PackEntryMixin {
 			return hovered;
 		}
 		return !holder.dragit$getController().suppressHover();
-	}
-
-	@Unique
-	private static void dragit$frame(GuiGraphics context, int left, int top, int right, int bottom, int border, int fill, float alpha) {
-		int edge = dragit$withAlpha(border, alpha);
-		context.fill(left, top, right, bottom, dragit$withAlpha(fill, alpha));
-		context.fill(left, top, left + 1, bottom, edge);
-		context.fill(right - 1, top, right, bottom, edge);
-		context.fill(left + 1, top, right - 1, top + 1, edge);
-		context.fill(left + 1, bottom - 1, right - 1, bottom, edge);
-	}
-
-	@Unique
-	private static int dragit$withAlpha(int argb, float factor) {
-		int alpha = Math.round((argb >>> 24) * Math.max(0F, Math.min(1F, factor)));
-		return (alpha << 24) | (argb & 0xFFFFFF);
 	}
 }
