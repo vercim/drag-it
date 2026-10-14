@@ -31,7 +31,7 @@ final class DragRenderer {
 		double a = indicator.alpha;
 
 		int right = ListGeometry.frameRight(list);
-		context.enableScissor(list.getX(), list.getY(), right, list.getBottom());
+		context.enableScissor(ListGeometry.left(list), ListGeometry.top(list), right, ListGeometry.bottom(list));
 		int x = ListGeometry.cellLeft(list);
 		int width = ListGeometry.cardWidth(list);
 		int top = (int) Math.round(ListGeometry.originY(list) + indicator.y);
@@ -45,7 +45,7 @@ final class DragRenderer {
 		context.disableScissor();
 
 		// Frame around the list that would receive the pack (the scrollbar stays outside of it).
-		GuiCompat.outline(context, list.getX(), list.getY(), right - list.getX(), list.getHeight(), scale(color, 0.55 * a));
+		GuiCompat.outline(context, ListGeometry.left(list), ListGeometry.top(list), right - ListGeometry.left(list), ListGeometry.height(list), scale(color, 0.55 * a));
 	}
 
 	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
@@ -56,8 +56,8 @@ final class DragRenderer {
 			TransferableSelectionList second = c.list(1);
 			int pad = DragItSettings.COLUMN_PADDING;
 			context.enableScissor(
-				Math.min(first.getX(), second.getX()) - pad, Math.min(first.getY(), second.getY()),
-				Math.max(ListGeometry.frameRight(first), ListGeometry.frameRight(second)) + pad, Math.max(first.getBottom(), second.getBottom())
+				Math.min(ListGeometry.left(first), ListGeometry.left(second)) - pad, Math.min(ListGeometry.top(first), ListGeometry.top(second)),
+				Math.max(ListGeometry.frameRight(first), ListGeometry.frameRight(second)) + pad, Math.max(ListGeometry.bottom(first), ListGeometry.bottom(second))
 			);
 		}
 		// The rest of a dropped stack glides below the card the cursor held.

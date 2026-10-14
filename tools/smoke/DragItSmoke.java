@@ -205,8 +205,8 @@ public final class DragItSmoke {
 		return onRender(() -> {
 			TransferableSelectionList l = ctl().list(id);
 			double y = ListGeometry.rowTop(l, index) + 16;
-			if (y < l.getY() + 8 || y > l.getBottom() - 8) {
-				l.setScrollAmount(ListGeometry.scrollAmount(l) + y - (l.getY() + 60));
+			if (y < ListGeometry.top(l) + 8 || y > ListGeometry.bottom(l) - 8) {
+				l.setScrollAmount(ListGeometry.scrollAmount(l) + y - (ListGeometry.top(l) + 60));
 				y = ListGeometry.rowTop(l, index) + 16;
 			}
 			return new double[]{ListGeometry.contentLeft(l) + 70, y};
@@ -408,7 +408,7 @@ public final class DragItSmoke {
 					int mismatches = 0;
 					for (int i = 0; i < ListGeometry.entries(l).size(); i++) {
 						double y = ListGeometry.rowTop(l, i) + 16;
-						if (y > l.getY() + 4 && y < l.getBottom() - 4 && ListGeometry.hit(l, ListGeometry.contentLeft(l) + 70, y) != i) {
+						if (y > ListGeometry.top(l) + 4 && y < ListGeometry.bottom(l) - 4 && ListGeometry.hit(l, ListGeometry.contentLeft(l) + 70, y) != i) {
 							mismatches++;
 						}
 					}
@@ -583,6 +583,14 @@ public final class DragItSmoke {
 			HELD = false;
 			sleep(400);
 			log("R5 clicked " + single + ", focus=" + onRender(() -> String.valueOf(screen().getFocused())));
+			// 1.20.1: a click on the body of a row selects nothing (only the arrows react); keyboard navigation does, through setFocused.
+			if (onRender(() -> ListGeometry.selected(ctl().list(1)) == null)) {
+				log("R5 the click selected nothing in this version; selecting the pack as keyboard navigation does");
+				onRender(() -> {
+					screen().setFocused(ctl().list(1));
+					ctl().list(1).setSelected(ListGeometry.find(ctl().list(1), single));
+				});
+			}
 			boolean space1 = realKey(GuiCompat.KEY_SPACE, 0);
 			sleep(900);
 			expect("R5", "space used", space1, true);

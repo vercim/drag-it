@@ -1,6 +1,8 @@
 package dev.vercim.dragit.drag;
 
+//? if >=1.21.1 {
 import dev.vercim.dragit.mixin.accessor.AbstractScrollAreaAccessor;
+//?}
 import dev.vercim.dragit.mixin.accessor.AbstractSelectionListAccessor;
 import dev.vercim.dragit.mixin.accessor.PackEntryAccessor;
 import dev.vercim.dragit.mixin.accessor.TransferableSelectionListAccessor;
@@ -62,7 +64,11 @@ final class ListGeometry {
 	}
 
 	static boolean scrollbarVisible(TransferableSelectionList list) {
+		//? if >=1.21.1 {
 		return ((AbstractScrollAreaAccessor) (Object) list).dragit$isScrollbarVisible();
+		//?} else {
+		/*return list.getMaxScroll() > 0;
+		*///?}
 	}
 
 	/** Current scroll offset in pixels. */
@@ -78,9 +84,11 @@ final class ListGeometry {
 	static void clampScroll(TransferableSelectionList list) {
 		//? if >=1.21.4 {
 		/*list.refreshScrollAmount();
-		*///?} else {
+		*///?} else if >=1.21.1 {
 		list.clampScrollAmount();
-		//?}
+		//?} else {
+		/*list.setScrollAmount(list.getScrollAmount());
+		*///?}
 	}
 
 	static int scrollbarX(TransferableSelectionList list) {
@@ -92,9 +100,65 @@ final class ListGeometry {
 		return itemHeight(list) - 4;
 	}
 
+	// Bounds of the list. From 1.21.1 the list is a widget with getX/getY/getRight/getBottom/getWidth/getHeight. 1.20.1's vanilla
+	// list keeps them in protected fields (x0, y0, x1, y1, width, height) and the getters that Forge adds do not exist on Fabric, so
+	// both loaders read them through getRectangle(), which vanilla builds from those fields.
+
+	/** Top edge of the list. */
+	static int top(TransferableSelectionList list) {
+		//? if >=1.21.1 {
+		return list.getY();
+		//?} else {
+		/*return list.getRectangle().top();
+		*///?}
+	}
+
+	/** Bottom edge (exclusive) of the list. */
+	static int bottom(TransferableSelectionList list) {
+		//? if >=1.21.1 {
+		return list.getBottom();
+		//?} else {
+		/*return list.getRectangle().bottom();
+		*///?}
+	}
+
+	/** Right edge (exclusive) of the list, scrollbar included. */
+	static int right(TransferableSelectionList list) {
+		//? if >=1.21.1 {
+		return list.getRight();
+		//?} else {
+		/*return list.getRectangle().right();
+		*///?}
+	}
+
+	static int width(TransferableSelectionList list) {
+		//? if >=1.21.1 {
+		return list.getWidth();
+		//?} else {
+		/*return list.getRectangle().width();
+		*///?}
+	}
+
+	static int height(TransferableSelectionList list) {
+		//? if >=1.21.1 {
+		return list.getHeight();
+		//?} else {
+		/*return list.getRectangle().height();
+		*///?}
+	}
+
+	/** Left edge of the list. */
+	static int left(TransferableSelectionList list) {
+		//? if >=1.21.1 {
+		return list.getX();
+		//?} else {
+		/*return list.getRectangle().left();
+		*///?}
+	}
+
 	/** Screen Y of the content of row 0, i.e. two pixels below the top of its cell (same as vanilla's {@code getRowTop(0)} up to 1.21.1). */
 	static int originY(TransferableSelectionList list) {
-		return list.getY() + 4 - (int) scrollAmount(list) + headerHeight(list);
+		return top(list) + 4 - (int) scrollAmount(list) + headerHeight(list);
 	}
 
 	static int rowTop(TransferableSelectionList list, int index) {
@@ -151,13 +215,20 @@ final class ListGeometry {
 			}
 		}
 		return -1;
-		*///?} else {
+		*///?} else if >=1.21.1 {
 		int half = list.getRowWidth() / 2;
 		int center = list.getX() + list.getWidth() / 2;
 		int m = Mth.floor(y - list.getY()) - headerHeight(list) + (int) scrollAmount(list) - 4;
 		int n = m / itemHeight(list);
 		return x >= center - half && x <= center + half && m >= 0 && n >= 0 && n < list.children().size() ? n : -1;
-		//?}
+		//?} else {
+		/*// 1.20.1: vanilla's getEntryAtPosition, which also refuses the scrollbar strip.
+		int half = list.getRowWidth() / 2;
+		int center = left(list) + width(list) / 2;
+		int m = Mth.floor(y - top(list)) - headerHeight(list) + (int) scrollAmount(list) - 4;
+		int n = m / itemHeight(list);
+		return x < scrollbarX(list) && x >= center - half && x <= center + half && m >= 0 && n >= 0 && n < list.children().size() ? n : -1;
+		*///?}
 	}
 
 	static TransferableSelectionList.PackEntry find(TransferableSelectionList list, String name) {

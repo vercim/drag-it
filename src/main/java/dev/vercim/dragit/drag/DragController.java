@@ -908,14 +908,14 @@ public final class DragController {
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
 			int pad = DragItSettings.COLUMN_PADDING;
-			if (pointerX < list.getX() - pad || pointerX > list.getRight() + pad) {
+			if (pointerX < ListGeometry.left(list) - pad || pointerX > ListGeometry.right(list) + pad) {
 				continue;
 			}
 			double speed = 0;
-			if (pointerY < list.getY() + edge && pointerY > list.getY() - slack) {
-				speed = -Math.min(1.5, (list.getY() + edge - pointerY) / edge);
-			} else if (pointerY > list.getBottom() - edge && pointerY < list.getBottom() + slack) {
-				speed = Math.min(1.5, (pointerY - (list.getBottom() - edge)) / edge);
+			if (pointerY < ListGeometry.top(list) + edge && pointerY > ListGeometry.top(list) - slack) {
+				speed = -Math.min(1.5, (ListGeometry.top(list) + edge - pointerY) / edge);
+			} else if (pointerY > ListGeometry.bottom(list) - edge && pointerY < ListGeometry.bottom(list) + slack) {
+				speed = Math.min(1.5, (pointerY - (ListGeometry.bottom(list) - edge)) / edge);
 			}
 			if (speed != 0) {
 				list.setScrollAmount(ListGeometry.scrollAmount(list) + speed * DragItSettings.AUTOSCROLL_MAX_SPEED * dt);

@@ -32,8 +32,12 @@ public abstract class PackSelectionScreenMixin extends Screen implements Control
 		return this.dragit$controller;
 	}
 
-	/** Called on first init, on window resize and when returning from a dialog. */
+	// Called on first init, on window resize and when returning from a dialog. 1.20.1 has no repositionElements: a resize runs init again.
+	//? if >=1.21.1 {
 	@Inject(method = "repositionElements", at = @At("TAIL"))
+	//?} else {
+	/*@Inject(method = "init", at = @At("TAIL"))
+	*///?}
 	private void dragit$onLayout(CallbackInfo ci) {
 		this.dragit$getController().onLayoutChanged();
 	}
