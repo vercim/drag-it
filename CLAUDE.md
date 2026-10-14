@@ -138,5 +138,6 @@ Build and run problems (wrong JDK, locked files on Windows, `verifyJar` failures
 - **NeoForge reports an invalid mod id** → ids may not contain hyphens; keep `mod_id=dragit`.
 - **Forge 1.20.1 shows "failed to load a valid ResourcePackInfo" at startup** → `pack.mcmeta` is missing from the mod's resources.
 - **Compiles on Forge 1.20.1 but not on Fabric** → the Forge patch adds `getLeft/getTop/getRight/getBottom/getWidth/getHeight` to `AbstractSelectionList`; use the `ListGeometry` helpers.
+- **A keyboard-moved group loses its selection (Minecraft 1.21.10 and newer)** → vanilla's list rebuild for a moved pack also selects that pack (`setFocused(entry)`), and `settleSelection` takes that for a click that ends the group; `followToList` clears vanilla's selection after every group move. The scripted test's K section checks this (`run-smoke.ps1 -Only K`).
 - **A press on an arrow no longer works** → `MouseHandlerMixin` swallows the press until the cursor moves; the release must replay the click to vanilla (`onRelease` in `PENDING`).
 - **Pointer position is off by a constant factor** → `Window.getWidth()` was used instead of `getScreenWidth()` (see Mixin rules).
