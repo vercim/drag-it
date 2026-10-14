@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
@@ -183,10 +183,10 @@ public final class DragController {
 	/** Vanilla's "the model changed" callback: rebuilds both widget lists from the organizer's lists. */
 	private void refreshLists() {
 		//? if >=1.21.10 {
-		organizer().dragit$getUpdateCallback().accept(null);
-		//?} else {
-		/*organizer().dragit$getUpdateCallback().run();
-		*///?}
+		/*organizer().dragit$getUpdateCallback().accept(null);
+		*///?} else {
+		organizer().dragit$getUpdateCallback().run();
+		//?}
 	}
 
 	private Pack findProfile(String id) {
@@ -371,7 +371,7 @@ public final class DragController {
 	 * Draws the part of the animated multi-selection outline that lies on one row, under the row's content and in the row's
 	 * own (possibly sliding) frame. {@code left..right} and {@code top..bottom} are the row's whole cell.
 	 */
-	public void drawMultiSelection(GuiGraphicsExtractor context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
+	public void drawMultiSelection(GuiGraphics context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
 		int list = listOf(widget);
 		if (list >= 0) {
 			DragRenderer.drawSelection(context, bands, list, index, left, top, right, bottom);
@@ -754,7 +754,7 @@ public final class DragController {
 	}
 
 	/** End of {@code Screen.render}: draw the placeholder and the lifted entry on top of everything. */
-	public void endFrame(GuiGraphicsExtractor context, float delta) {
+	public void endFrame(GuiGraphics context, float delta) {
 		if (!ready()) {
 			return;
 		}
