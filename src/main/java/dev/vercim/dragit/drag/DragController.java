@@ -105,6 +105,8 @@ public final class DragController {
 	private String bandSeed;
 	/** Vanilla's single selection (pack id) of each list as {@link #settleSelection} last saw it, to tell which one is the newer. */
 	private final String[] lastSelected = new String[2];
+	/** The packs of both lists (available, selected) when a click on an arrow was handed to vanilla; consumed by the next frame. */
+	private List<List<String>> arrowClick;
 	private int multiList = -1;
 	private String multiAnchor;
 
@@ -249,6 +251,9 @@ public final class DragController {
 			}
 		}
 		if (grab == null) {
+			if (arrowAt(x, y)) {
+				noteArrowClick(); // the arrow of a pinned pack: vanilla moves it right after this returns
+			}
 			return false; // vanilla handles it (arrows, selection, scrollbar, pinned packs...)
 		}
 		phase = Phase.PENDING;
@@ -281,6 +286,9 @@ public final class DragController {
 				}
 				clearMulti(); // Explorer: a click on a selected item collapses the selection to that item
 				multiAnchor = clicked;
+			}
+			if (onEnableDisableArrow(srcList, clicked, pressX, pressY)) {
+				noteArrowClick();
 			}
 			GuiCompat.click(screen, pressX, pressY);
 			GuiCompat.release(screen, x, y);
@@ -396,6 +404,14 @@ public final class DragController {
 	 * the keyboard can select a row while a multi-selection exists. The newer selection wins and the older one is dropped.
 	 */
 	private void settleSelection() {
+		if (arrowClick != null) {
+			// An arrow that moved a pack: from 1.21.10 vanilla leaves the moved pack selected (a grey frame, as the list has no
+			// keyboard focus). A drop leaves nothing selected, and so does this.
+			if (!arrowClick.get(AVAILABLE).equals(ListGeometry.names(list(AVAILABLE))) || !arrowClick.get(SELECTED).equals(ListGeometry.names(list(SELECTED)))) {
+				clearVanillaSelection();
+			}
+			arrowClick = null;
+		}
 		boolean[] fresh = new boolean[2];
 		String[] now = new String[2];
 		for (int i = 0; i < 2; i++) {
@@ -590,6 +606,23 @@ public final class DragController {
 	private boolean onEnableDisableArrow(int listId, String name, double x, double y) {
 		TransferableSelectionList.PackEntry entry = ListGeometry.find(list(listId), name);
 		return entry != null && ListGeometry.onToggleArrow(list(listId), entry, x, y);
+	}
+
+	/** True if the point is on the enable/disable arrow of a row of either list. */
+	private boolean arrowAt(double x, double y) {
+		for (int i = 0; i < 2; i++) {
+			TransferableSelectionList list = list(i);
+			if (list.isMouseOver(x, y)) {
+				int index = ListGeometry.hit(list, x, y);
+				return index >= 0 && ListGeometry.onToggleArrow(list, ListGeometry.entries(list).get(index), x, y);
+			}
+		}
+		return false;
+	}
+
+	/** Remembers the packs of both lists just before vanilla handles a click on an arrow; {@link #settleSelection} judges the outcome. */
+	private void noteArrowClick() {
+		arrowClick = List.of(ListGeometry.names(list(AVAILABLE)), ListGeometry.names(list(SELECTED)));
 	}
 
 	/** Clears vanilla's single selection of both lists (the multi-selection replaces it, and a lifted pack has none). */

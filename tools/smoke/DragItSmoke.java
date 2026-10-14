@@ -517,6 +517,29 @@ public final class DragItSmoke {
 	}
 
 	/**
+	 * A: a plain click on a pack's enable/disable arrow sends it across and, like a drop, leaves no selection frame behind
+	 * (from 1.21.10 vanilla selects the moved pack, which shows as a grey frame).
+	 */
+	static void arrowClicks() {
+		clearSelection();
+		inputType("MOUSE");
+		String id = "file/TestB";
+		for (int step = 1; step <= 2; step++) {
+			String label = "A" + step;
+			int from = modelAvail().contains(id) ? 0 : 1;
+			double[] centre = row(from, idx(from, id));
+			double[] arrow = {centre[0] - 62, centre[1]}; // row() points 70 px into the content; the arrow is in its first 32
+			press(arrow, 0);
+			release(arrow);
+			sleep(900);
+			log(label + " " + selectionDiag());
+			expect(label, "the pack went across", (from == 0 ? modelSel() : modelAvail()).contains(id), true);
+			expect(label, "no vanilla selection left", onRender(() -> ListGeometry.selected(ctl().list(0)) == null && ListGeometry.selected(ctl().list(1)) == null), true);
+			shot(label + "-after-arrow");
+		}
+	}
+
+	/**
 	 * V: screenshots of the selection outlines while they move (judged by eye: the files land in screenshots/). The delays are
 	 * short on purpose, the pictures show the outline in the middle of its motion.
 	 */
@@ -605,6 +628,8 @@ public final class DragItSmoke {
 			if (!only.isEmpty()) { // run-smoke.ps1 -Only K / V: just that section
 				if (only.equals("K")) {
 					keyboardRoundTrips();
+				} else if (only.equals("A")) {
+					arrowClicks();
 				} else if (only.equals("V")) {
 					outlineMotion();
 				}
@@ -837,6 +862,7 @@ public final class DragItSmoke {
 				expect(label, "both packs moved", target.containsAll(List.of(g1, g2)), true);
 			}
 			keyboardRoundTrips();
+			arrowClicks();
 			outlineMotion();
 			log("DONE");
 		} catch (Throwable t) {
