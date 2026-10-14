@@ -12,6 +12,13 @@
     "sources": "https://github.com/vercim/drag-it",
     "issues": "https://github.com/vercim/drag-it/issues"
   },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "modmenu.discord": "https://discord.gg/JfttnVcczU"
+      }
+    }
+  },
   "license": "LGPL-3.0-only",
   "icon": "icon.png",
   "environment": "client",
