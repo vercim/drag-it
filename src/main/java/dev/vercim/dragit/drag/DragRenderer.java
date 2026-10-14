@@ -152,24 +152,23 @@ final class DragRenderer {
 	) {
 		int height = bottom - top;
 		for (SelectionBands.Band band : bands.bands(list)) {
-			double from = Math.max(band.top, index);
-			double to = Math.min(band.bottom, index + 1);
-			if (band.alpha <= 0.004 || to <= from) {
+			if (band.alpha <= 0.004) {
 				continue;
 			}
-			int y0 = top + (int) Math.round((from - index) * height);
-			int y1 = top + (int) Math.round((to - index) * height);
-			if (y1 <= y0) {
+			SelectionBands.Slice slice = SelectionBands.slice(band, index, top, height);
+			if (slice == null) {
 				continue;
 			}
+			int y0 = slice.y0();
+			int y1 = slice.y1();
 			int edge = scale(border, band.alpha);
 			context.fill(left, y0, right, y1, scale(fill, band.alpha));
 			context.fill(left, y0, left + 1, y1, edge);
 			context.fill(right - 1, y0, right, y1, edge);
-			if (band.top >= index) { // the top edge of the band lies in this row
+			if (slice.topEdge()) { // the top edge of the band lies in this row
 				context.fill(left + 1, y0, right - 1, y0 + 1, edge);
 			}
-			if (band.bottom <= index + 1) { // and its bottom edge
+			if (slice.bottomEdge()) { // and its bottom edge
 				context.fill(left + 1, y1 - 1, right - 1, y1, edge);
 			}
 		}
