@@ -1,24 +1,20 @@
-## [Unreleased]
+## [1.0.0]
 
 ### Added
 
-- Support for Minecraft 1.20.1 (Java 17), 1.21.4, 1.21.10, 1.21.11 (Java 21) and 26.1, 26.1.2, 26.2, 26.3 (Java 25) on Fabric and NeoForge..
- 
-- Drag & drop works while the search box is in use (1.21.10 and newer);
-- The lifted card turn red when you hold the built-in Default pack over the available list, or incompatible packs over the enabled list.
-### Changed
-- The outline of a multi-selection now glides when you Shift+click or Ctrl+click, instead of fading in all at once.
-
+- Support for Minecraft 1.20.1 (Java 17), 1.21.4, 1.21.10, 1.21.11 (Java 21) and 26.1, 26.1.2, 26.2, 26.3 (Java 25) on Fabric and NeoForge (Forge).
+- The lifted stack turn red when you hold the built-in Default pack over the available list, or incompatible packs over the enabled list.
+- The outline of a multi-selection now glides instead of fading in all at once.
 ### Removed
-- The "Fixed position" hint over a pinned pack; the red marker stays. The mod no longer shows any text, so its English and Russian translations are gone.
-
+- The "Fixed position" hint over a pinned pack; the red marker stays. The mod no longer shows any text.
 ### Fixed
+
 - Selecting a pack in one list no longer leaves a highlighted pack behind in the other.
 - Sending a group to the other list: packs that cannot go (required or incompatible ones) stay where they are and leave the selection.
 - Dropping a group now glides every card into its place; before, only the card under the cursor did and the others jumped.
-- Space sends the selected pack to the other list, as Enter does. From Minecraft 1.21.10 vanilla only reacts to Enter.
+- Space sends the selected pack to the other list, as Enter does (From Minecraft 1.21.10 vanilla only reacts to Enter).
 - Enter and Space now work right after Ctrl+click or Shift+click even if the search box still had the keyboard focus (1.21.10 and newer).
-
+- Drag & drop works while the search box is in use (1.21.10 and newer)
 ## [0.0.1-alpha] - 2026-10-11
 
 ### Overall
