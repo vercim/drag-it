@@ -128,7 +128,7 @@ A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` ho
 
 ```powershell
 .\tools\smoke\run-smoke.ps1                        # every target in versions/, one after the other
-.\tools\smoke\run-smoke.ps1 1.21.4-neoforge 26.3-fabric   # chosen targets only
+.\tools\smoke\run-smoke.ps1 -Targets 1.21.4-neoforge,26.3-fabric   # chosen targets only (comma-separated: a space makes PowerShell bind the second name to another parameter)
 .\tools\smoke\run-smoke.ps1 -Uninstall            # clean up after a run that was killed
 ```
 

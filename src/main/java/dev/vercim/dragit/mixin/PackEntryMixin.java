@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 *///?}
 
 @Mixin(TransferableSelectionList.PackEntry.class)
@@ -89,6 +90,16 @@ public abstract class PackEntryMixin {
 	) {
 		dragit$end(context, this.dragit$state);
 		this.dragit$state = DRAW_PLAIN;
+	}
+
+	// Vanilla 1.20.1 answers a click on the body of a row with false, so the list never selects the row and the selection
+	// frame never shows (only the keyboard selects). From 1.20.2 the click falls through to a handler that answers true and
+	// the list selects the row; this does the same. (Line comments: this branch sits inside a block comment.)
+	@Inject(method = "mouseClicked", at = @At("RETURN"), cancellable = true)
+	private void dragit$selectOnClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+		if (button == GuiCompat.MOUSE_LEFT && !cir.getReturnValueZ()) {
+			cir.setReturnValue(true);
+		}
 	}
 	*///?}
 

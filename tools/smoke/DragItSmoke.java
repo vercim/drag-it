@@ -583,14 +583,12 @@ public final class DragItSmoke {
 			HELD = false;
 			sleep(400);
 			log("R5 clicked " + single + ", focus=" + onRender(() -> String.valueOf(screen().getFocused())));
-			// 1.20.1: a click on the body of a row selects nothing (only the arrows react); keyboard navigation does, through setFocused.
-			if (onRender(() -> ListGeometry.selected(ctl().list(1)) == null)) {
-				log("R5 the click selected nothing in this version; selecting the pack as keyboard navigation does");
-				onRender(() -> {
-					screen().setFocused(ctl().list(1));
-					ctl().list(1).setSelected(ListGeometry.find(ctl().list(1), single));
-				});
-			}
+			// The click itself must select the pack (vanilla 1.20.1 does not; the mod makes it).
+			String picked = onRender(() -> {
+				var entry = ListGeometry.selected(ctl().list(1));
+				return entry == null ? null : entry.getPackId();
+			});
+			expect("R5", "the click selected the pack", single.equals(picked), true);
 			boolean space1 = realKey(GuiCompat.KEY_SPACE, 0);
 			sleep(900);
 			expect("R5", "space used", space1, true);

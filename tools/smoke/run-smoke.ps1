@@ -83,6 +83,7 @@ function Install-Harness {
 function Invoke-Gradle([string]$ArgLine, [string]$LogBase, [int]$TimeoutMs = -1) {
     $p = Start-Process -FilePath (Join-Path $root 'gradlew.bat') -ArgumentList $ArgLine -NoNewWindow -PassThru `
         -RedirectStandardOutput "$LogBase.log" -RedirectStandardError "$LogBase.err.log"
+    $null = $p.Handle # without it Windows PowerShell 5.1 may leave ExitCode empty after -NoNewWindow -PassThru
     if ($p.WaitForExit($TimeoutMs)) { return [pscustomobject]@{ TimedOut = $false; ExitCode = $p.ExitCode } }
     & taskkill /PID $p.Id /T /F | Out-Null
     return [pscustomobject]@{ TimedOut = $true; ExitCode = -1 }
