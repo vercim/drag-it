@@ -6,6 +6,9 @@ license = "LGPL-3.0-only"
 modId = "dragit"
 version = "${version}"
 displayName = "Drag It!"
+# NeoForge 26.2+ deprecates logoFile/logoBlur in favour of iconFile/iconBlur and warns at startup when only the old key is set; older versions only know logoFile.
+iconFile = "icon.png"
+iconBlur = false
 logoFile = "icon.png"
 logoBlur = false
 displayURL = "https://github.com/vercim/drag-it"

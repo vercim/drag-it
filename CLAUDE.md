@@ -25,6 +25,7 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 
 ## Rules that must not be forgotten
 
+- When adding support for a new Minecraft version or loader, run the scripted gesture test (`.\tools\smoke\run-smoke.ps1`, see [docs/WORKFLOW.md](docs/WORKFLOW.md#scripted-gesture-test)) on the dev client of **every** new target (both loaders), each at least once, before calling the port done. A build, `verifyJar` or the Mixin audit does not count, and a target with no run recorded in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md) is untested; say so instead of writing "all passed".
 - IDE-only runs prove nothing about loader integration; validate the packaged JAR from `build/libs/` in a clean client profile (steps in [docs/WORKFLOW.md](docs/WORKFLOW.md)).
 - Both JARs must register `dragit.mixins.json` and contain every mixin class, and loader-specific files must be absent from the other loader's JAR. `verifyJar` (part of `build`) enforces this; a missing registration makes the mod load while every injection silently does nothing.
 - Mixin target strings are **not** checked at compile time: a wrong method or field name still builds and only fails when the game applies the mixin. After touching a target string or porting, check it in a running client (see "Mixin audit" in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
@@ -58,6 +59,7 @@ src/main/java/dev/vercim/dragit/
   neoforge/DragItNeoForge.java     — the @Mod class javafml requires; empty, the mod works through Mixin only
 src/main/resources/
   fabric.mod.json, META-INF/neoforge.mods.toml, dragit.mixins.json, icon.png
+tools/smoke/                       — the scripted gesture test (harness + run-smoke.ps1); copied into src/ only while a run lasts, never part of the mod
 ```
 
 Platform entry points: Fabric has none (the mod is pure Mixin); NeoForge needs the `@Mod` class above.
@@ -105,7 +107,7 @@ Exact Minecraft signatures are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)
 - **Mixins:** Fabric registers `dragit.mixins.json` in `fabric.mod.json` (`"mixins"`); NeoForge needs `[[mixins]]` in `META-INF/neoforge.mods.toml`.
 - **Entry point:** NeoForge's `javafml` refuses a mod without a `@Mod` class, so `DragItNeoForge` exists and is empty. It is `Dist.CLIENT` only.
 - **Metadata:** each JAR carries only its own descriptor (`fabric.mod.json` or `neoforge.mods.toml`); the build excludes the other.
-- **Icon:** `icon.png` is pixel art. NeoForge sets `logoBlur = false`; Mod Menu has no option for icon filtering, so nothing is configurable on Fabric.
+- **Icon:** `icon.png` is pixel art. NeoForge sets `iconBlur = false` (26.2+, where `logoFile` is deprecated and warns at startup unless `iconFile` is also set) and `logoBlur = false` (older versions); Mod Menu has no option for icon filtering, so nothing is configurable on Fabric.
 - **Plugins:** before changing the Gradle wrapper, check compatibility of Stonecutter, Loom Back Compat, Fabric Loom, and NeoForge ModDev.
 
 ## Localization
