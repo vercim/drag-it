@@ -22,10 +22,14 @@ public final class DragItSettings {
 	/** How fast the insertion placeholder slides and fades. */
 	public static final double INDICATOR_RATE = 24.0;
 
-	/** How fast the selection highlight of a pack (single and multi) fades in / out. */
-	public static final double SELECTION_FADE_RATE = 20.0;
-	/** How fast the edges of the multi-selection outline glide to the rows they enclose. */
-	public static final double SELECTION_EDGE_RATE = 16.0;
+	/**
+	 * Selection outlines (single and multi) move on critically damped springs that keep their velocity when the selection changes
+	 * again mid-way, so these are natural frequencies in rad/s, not blend rates: the larger, the faster. About 0.2 s from a
+	 * standing start to rest at 26.
+	 */
+	public static final double SELECTION_EDGE_STIFFNESS = 26.0;
+	/** Same for the opacity of an outline fading in and out. */
+	public static final double SELECTION_FADE_STIFFNESS = 30.0;
 
 	/** Scale of the fully lifted entry. */
 	public static final float GHOST_SCALE = 1.05F;

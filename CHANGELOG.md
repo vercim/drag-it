@@ -16,6 +16,7 @@
 - Enter and Space now work right after Ctrl+click or Shift+click even if the search box still had the keyboard focus (1.21.10 and newer).
 - Drag & drop works while the search box is in use (1.21.10 and newer)
 - The drop placeholder keeps the same two-pixel margin from the list frame on every version; before 1.21.10 it touched the frame.
+- Selecting packs quickly no longer makes the outline stutter or lag: outlines now move on springs that keep their speed when the selection changes again mid-animation, so fast clicking only bends the motion. The frame of a single selected pack glides from pack to pack instead of fading out in one place and in at another.
 - A group sent back and forth with Enter or Space keeps its selection; on Minecraft 26.2 and 26.3 it was dropped on the second press.
 ## [0.0.1-alpha] - 2026-10-11
 

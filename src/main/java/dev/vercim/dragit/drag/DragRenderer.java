@@ -143,10 +143,13 @@ final class DragRenderer {
 	}
 
 	/**
-	 * The slice of the multi-selection outline that falls on one row. {@code left..right} and {@code top..bottom} are the
+	 * The slice of a selection outline that falls on one row. {@code left..right} and {@code top..bottom} are the
 	 * row's whole cell (cells of neighbouring rows touch), so a band spanning several rows is drawn as one continuous shape.
+	 * {@code border} and {@code fill} are the outline's ARGB colours at full opacity.
 	 */
-	static void drawSelection(GuiGraphics context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom) {
+	static void drawSelection(
+		GuiGraphics context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom, int border, int fill
+	) {
 		int height = bottom - top;
 		for (SelectionBands.Band band : bands.bands(list)) {
 			double from = Math.max(band.top, index);
@@ -159,8 +162,8 @@ final class DragRenderer {
 			if (y1 <= y0) {
 				continue;
 			}
-			int edge = scale(DragItSettings.MULTI_SELECT_BORDER, band.alpha);
-			context.fill(left, y0, right, y1, scale(DragItSettings.MULTI_SELECT_FILL, band.alpha));
+			int edge = scale(border, band.alpha);
+			context.fill(left, y0, right, y1, scale(fill, band.alpha));
 			context.fill(left, y0, left + 1, y1, edge);
 			context.fill(right - 1, y0, right, y1, edge);
 			if (band.top >= index) { // the top edge of the band lies in this row
