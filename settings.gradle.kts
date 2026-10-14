@@ -14,6 +14,7 @@ plugins {
     id("dev.kikugie.stonecutter") version "0.9.8"
     id("dev.kikugie.loom-back-compat") version "0.4.3" apply false
     id("net.neoforged.moddev") version "2.0.148" apply false
+    id("net.neoforged.moddev.legacyforge") version "2.0.148" apply false
     id("me.modmuss50.mod-publish-plugin") version "2.2.1" apply false
 }
 
@@ -21,6 +22,8 @@ rootProject.name = "drag-it"
 
 stonecutter {
     create(rootProject) {
+        version("1.20.1-fabric", "1.20.1").buildscript = "build.fabric.gradle.kts"
+        version("1.20.1-forge", "1.20.1").buildscript = "build.forge.gradle.kts"
         version("1.21.1-fabric", "1.21.1").buildscript = "build.fabric.gradle.kts"
         version("1.21.1-neoforge", "1.21.1").buildscript = "build.neoforge.gradle.kts"
         version("1.21.4-fabric", "1.21.4").buildscript = "build.fabric.gradle.kts"

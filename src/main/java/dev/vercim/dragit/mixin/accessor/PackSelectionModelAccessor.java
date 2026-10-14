@@ -7,8 +7,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
 //? if >=1.21.10 {
-import java.util.function.Consumer;
-//?}
+/*import java.util.function.Consumer;
+*///?}
 
 /**
  * The organizer's own lists are the single source of truth for what "Done" applies, so the mod edits them directly.
@@ -27,12 +27,12 @@ public interface PackSelectionModelAccessor {
 	 * afterwards ({@code null} for none) instead of being a plain {@code Runnable}.
 	 */
 	//? if >=1.21.10 {
-	@Accessor("onListChanged")
-	Consumer<PackSelectionModel.EntryBase> dragit$getUpdateCallback();
-	//?} else {
 	/*@Accessor("onListChanged")
+	Consumer<PackSelectionModel.EntryBase> dragit$getUpdateCallback();
+	*///?} else {
+	@Accessor("onListChanged")
 	Runnable dragit$getUpdateCallback();
-	*///?}
+	//?}
 
 	@Invoker("updateRepoSelectedList")
 	void dragit$refreshEnabledProfiles();

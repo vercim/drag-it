@@ -35,6 +35,7 @@ Set-Location $root
 # pack_format (the major number the harness writes into its test packs) per Minecraft version.
 # A new version must be added here; the script refuses to test a target it has no format for.
 $packFormats = @{
+    '1.20.1'  = 15
     '1.21.1'  = 34
     '1.21.4'  = 46
     '1.21.10' = 69
@@ -82,6 +83,7 @@ function Install-Harness {
 function Invoke-Gradle([string]$ArgLine, [string]$LogBase, [int]$TimeoutMs = -1) {
     $p = Start-Process -FilePath (Join-Path $root 'gradlew.bat') -ArgumentList $ArgLine -NoNewWindow -PassThru `
         -RedirectStandardOutput "$LogBase.log" -RedirectStandardError "$LogBase.err.log"
+    $null = $p.Handle # without it Windows PowerShell 5.1 may leave ExitCode empty after -NoNewWindow -PassThru
     if ($p.WaitForExit($TimeoutMs)) { return [pscustomobject]@{ TimedOut = $false; ExitCode = $p.ExitCode } }
     & taskkill /PID $p.Id /T /F | Out-Null
     return [pscustomobject]@{ TimedOut = $true; ExitCode = -1 }
@@ -95,7 +97,7 @@ if (-not $Targets) {
 }
 foreach ($t in $Targets) {
     if (-not (Test-Path (Join-Path $root "versions\$t"))) { throw "Unknown target '$t' (no versions\$t)." }
-    $mc = $t -replace '-(fabric|neoforge)$', ''
+    $mc = $t -replace '-(fabric|neoforge|forge)$', ''
     if (-not $packFormats.ContainsKey($mc)) { throw "No pack_format for Minecraft ${mc}: add it to `$packFormats in tools/smoke/run-smoke.ps1." }
 }
 
@@ -105,7 +107,7 @@ $results = @()
 
 try {
     foreach ($t in $Targets) {
-        $mc = $t -replace '-(fabric|neoforge)$', ''
+        $mc = $t -replace '-(fabric|neoforge|forge)$', ''
         Write-Host "=== $t ===" -ForegroundColor Cyan
         $run = Join-Path $root "versions\$t\run"
         $status = 'ERROR'; $pass = 0; $fail = 0; $note = ''
@@ -129,7 +131,7 @@ try {
                 $status = 'TIMEOUT'
                 # the client is a child of the Gradle daemon, not of the wrapper: find it by its target folder
                 Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
-                    Where-Object { $_.CommandLine -match [regex]::Escape($t) -and $_.CommandLine -match 'minecraft|neoforge|fabric' } |
+                    Where-Object { $_.CommandLine -match [regex]::Escape($t) -and $_.CommandLine -match 'minecraft|neoforge|forge|fabric' } |
                     ForEach-Object { Write-Host "killing leftover client $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force }
             }
 

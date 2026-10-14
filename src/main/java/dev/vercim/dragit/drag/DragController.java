@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
@@ -183,10 +183,10 @@ public final class DragController {
 	/** Vanilla's "the model changed" callback: rebuilds both widget lists from the organizer's lists. */
 	private void refreshLists() {
 		//? if >=1.21.10 {
-		organizer().dragit$getUpdateCallback().accept(null);
-		//?} else {
-		/*organizer().dragit$getUpdateCallback().run();
-		*///?}
+		/*organizer().dragit$getUpdateCallback().accept(null);
+		*///?} else {
+		organizer().dragit$getUpdateCallback().run();
+		//?}
 	}
 
 	private Pack findProfile(String id) {
@@ -371,7 +371,7 @@ public final class DragController {
 	 * Draws the part of the animated multi-selection outline that lies on one row, under the row's content and in the row's
 	 * own (possibly sliding) frame. {@code left..right} and {@code top..bottom} are the row's whole cell.
 	 */
-	public void drawMultiSelection(GuiGraphicsExtractor context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
+	public void drawMultiSelection(GuiGraphics context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
 		int list = listOf(widget);
 		if (list >= 0) {
 			DragRenderer.drawSelection(context, bands, list, index, left, top, right, bottom);
@@ -754,7 +754,7 @@ public final class DragController {
 	}
 
 	/** End of {@code Screen.render}: draw the placeholder and the lifted entry on top of everything. */
-	public void endFrame(GuiGraphicsExtractor context, float delta) {
+	public void endFrame(GuiGraphics context, float delta) {
 		if (!ready()) {
 			return;
 		}
@@ -908,14 +908,14 @@ public final class DragController {
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList list = list(i);
 			int pad = DragItSettings.COLUMN_PADDING;
-			if (pointerX < list.getX() - pad || pointerX > list.getRight() + pad) {
+			if (pointerX < ListGeometry.left(list) - pad || pointerX > ListGeometry.right(list) + pad) {
 				continue;
 			}
 			double speed = 0;
-			if (pointerY < list.getY() + edge && pointerY > list.getY() - slack) {
-				speed = -Math.min(1.5, (list.getY() + edge - pointerY) / edge);
-			} else if (pointerY > list.getBottom() - edge && pointerY < list.getBottom() + slack) {
-				speed = Math.min(1.5, (pointerY - (list.getBottom() - edge)) / edge);
+			if (pointerY < ListGeometry.top(list) + edge && pointerY > ListGeometry.top(list) - slack) {
+				speed = -Math.min(1.5, (ListGeometry.top(list) + edge - pointerY) / edge);
+			} else if (pointerY > ListGeometry.bottom(list) - edge && pointerY < ListGeometry.bottom(list) + slack) {
+				speed = Math.min(1.5, (pointerY - (ListGeometry.bottom(list) - edge)) / edge);
 			}
 			if (speed != 0) {
 				list.setScrollAmount(ListGeometry.scrollAmount(list) + speed * DragItSettings.AUTOSCROLL_MAX_SPEED * dt);

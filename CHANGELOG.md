@@ -1,8 +1,10 @@
 ## [Unreleased]
 
 ### Added
-- Support for Minecraft 1.21.4, 1.21.10, 1.21.11 (Java 21) and 26.1, 26.1.2, 26.2, 26.3 (Java 25) on Fabric and NeoForge..
- Drag & drop works while the search box is in use (1.21.10 and newer);
+
+- Support for Minecraft 1.20.1 (Java 17), 1.21.4, 1.21.10, 1.21.11 (Java 21) and 26.1, 26.1.2, 26.2, 26.3 (Java 25) on Fabric and NeoForge..
+ 
+- Drag & drop works while the search box is in use (1.21.10 and newer);
 - The lifted card turn red when you hold the built-in Default pack over the available list, or incompatible packs over the enabled list.
 ### Changed
 - The outline of a multi-selection now glides when you Shift+click or Ctrl+click, instead of fading in all at once.

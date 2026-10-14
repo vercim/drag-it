@@ -60,7 +60,13 @@ tasks.processResources {
     )
     inputs.properties(metadata)
     filesMatching("fabric.mod.json") { expand(metadata) }
-    exclude("META-INF/neoforge.mods.toml")
+    exclude("META-INF/neoforge.mods.toml", "META-INF/mods.toml", "pack.mcmeta")
+    // Java 17 for the 1.20.1 target: the shared Mixin config names the level of the newer ones.
+    if (javaVersion < 21) {
+        filesMatching("$modId.mixins.json") {
+            filter(Transformer<String?, String> { line -> line.orEmpty().let { if ("compatibilityLevel" in it) it.replace("JAVA_21", "JAVA_$javaVersion") else it } })
+        }
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -94,7 +100,9 @@ val verifyJar = tasks.register("verifyJar") {
             check("$modId.mixins.json" in configs) { "fabric.mod.json does not register $modId.mixins.json" }
             zip.getEntry("LICENSE_$modId") ?: error("LICENSE_$modId is missing from ${zip.name}")
             check(zip.getEntry("META-INF/neoforge.mods.toml") == null) { "neoforge.mods.toml leaked into the Fabric JAR" }
+            check(zip.getEntry("META-INF/mods.toml") == null) { "mods.toml leaked into the Fabric JAR" }
             check(zip.entries().asSequence().none { it.name.startsWith("dev/vercim/dragit/neoforge/") }) { "NeoForge classes leaked into the Fabric JAR" }
+            check(zip.entries().asSequence().none { it.name.startsWith("dev/vercim/dragit/forge/") }) { "Forge classes leaked into the Fabric JAR" }
 
             for (path in configs.map { it.toString() }) {
                 val config = json(path)
