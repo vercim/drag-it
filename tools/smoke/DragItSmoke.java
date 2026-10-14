@@ -202,15 +202,21 @@ public final class DragItSmoke {
 
 	/** Centre of the content of row {@code index} of list {@code id}: {x, y}. */
 	static double[] row(int id, int index) {
-		return onRender(() -> {
+		boolean[] scrolled = {false};
+		double[] at = onRender(() -> {
 			TransferableSelectionList l = ctl().list(id);
 			double y = ListGeometry.rowTop(l, index) + 16;
 			if (y < ListGeometry.top(l) + 8 || y > ListGeometry.bottom(l) - 8) {
 				l.setScrollAmount(ListGeometry.scrollAmount(l) + y - (ListGeometry.top(l) + 60));
 				y = ListGeometry.rowTop(l, index) + 16;
+				scrolled[0] = true;
 			}
 			return new double[]{ListGeometry.contentLeft(l) + 70, y};
 		});
+		if (scrolled[0]) {
+			sleep(300); // from 1.21.10 every row keeps its own position, which the list refreshes when it is drawn: a click right after scrolling would hit the old row
+		}
+		return at;
 	}
 
 	/** Pointer position that drops at gap {@code gap} of list {@code id}. */
@@ -370,6 +376,203 @@ public final class DragItSmoke {
 		});
 	}
 
+	/**
+	 * Sets the input type the game believes the player used last (keyboard navigation behaves differently from mouse clicks);
+	 * the first of {@code names} that this version has.
+	 */
+	static void inputType(String... names) {
+		onRender(() -> {
+			try {
+				Class<?> type = Class.forName("net.minecraft.client.InputType");
+				for (String name : names) {
+					for (Object constant : type.getEnumConstants()) {
+						if (((Enum<?>) constant).name().equals(name)) {
+							Minecraft.class.getMethod("setLastInputType", type).invoke(Minecraft.getInstance(), constant);
+							return;
+						}
+					}
+				}
+				log("input type " + java.util.Arrays.toString(names) + " unknown, constants: " + java.util.Arrays.toString(type.getEnumConstants()));
+			} catch (ReflectiveOperationException e) {
+				log("input type " + java.util.Arrays.toString(names) + " unavailable: " + e);
+			}
+		});
+	}
+
+	/** The controller's multi-selection, read from its private field. */
+	@SuppressWarnings("unchecked")
+	static java.util.Set<String> multi() {
+		return onRender(() -> {
+			try {
+				Field f = DragController.class.getDeclaredField("multi");
+				f.setAccessible(true);
+				return new java.util.TreeSet<>((java.util.Set<String>) f.get(ctl()));
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException(e);
+			}
+		});
+	}
+
+	/** List that holds the multi-selection, or -1. */
+	static int multiList() {
+		return onRender(() -> {
+			try {
+				Field f = DragController.class.getDeclaredField("multiList");
+				f.setAccessible(true);
+				return f.getInt(ctl());
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException(e);
+			}
+		});
+	}
+
+	/** One line about the selection state: multi-selection, vanilla's own single selection of both lists, the keyboard focus. */
+	static String selectionDiag() {
+		String groups = "multi=" + multi() + " multiList=" + multiList();
+		return groups + onRender(() -> {
+			var a = ListGeometry.selected(ctl().list(0));
+			var b = ListGeometry.selected(ctl().list(1));
+			return " vanillaAvail=" + (a == null ? null : a.getPackId()) + " vanillaSel=" + (b == null ? null : b.getPackId())
+				+ " focus=" + (screen().getFocused() == null ? null : screen().getFocused().getClass().getSimpleName());
+		});
+	}
+
+	/** Ends every selection of the screen: the controller's group and vanilla's single selection of both lists. */
+	static void clearSelection() {
+		onRender(() -> {
+			try {
+				var clear = DragController.class.getDeclaredMethod("clearMulti");
+				clear.setAccessible(true);
+				clear.invoke(ctl());
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException(e);
+			}
+			ctl().list(0).setSelected(null);
+			ctl().list(1).setSelected(null);
+		});
+	}
+
+	static void ctrlClick(double[] at) {
+		pointer(at[0], at[1]);
+		HELD = true;
+		realButton(com.mojang.blaze3d.platform.InputConstants.PRESS, com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL);
+		realButton(0, com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL);
+		HELD = false;
+		sleep(400);
+	}
+
+	/**
+	 * K: a group sent back and forth with the keyboard keeps its selection, so that the same key brings it back; only a click or
+	 * an edit of the selection may end it.
+	 */
+	static void keyboardRoundTrips() {
+		for (int variant = 0; variant < 2; variant++) {
+			String label = "K" + (variant + 1);
+			clearSelection(); // what an earlier section left selected (a group, or a single pack) would join or undo the new group
+			int from = modelAvail().stream().filter(n -> n.startsWith("file/")).count() >= 3 ? 0 : 1;
+			List<String> pool = (from == 0 ? modelAvail() : modelSel()).stream().filter(n -> n.startsWith("file/")).toList();
+			if (pool.size() < 3) {
+				log(label + " skipped (fewer than three test packs in one list)");
+				return;
+			}
+			// variant 0: three neighbours; variant 1: two packs with a gap between them
+			List<String> group = variant == 0 ? List.of(pool.get(0), pool.get(1), pool.get(2)) : List.of(pool.get(0), pool.get(2));
+			java.util.Set<String> expected = new java.util.TreeSet<>(group);
+			if (focusSearch()) {
+				log(label + " search box focused first, as when the screen opens");
+			}
+			inputType("MOUSE");
+			for (String name : group) {
+				ctrlClick(row(from, idx(from, name)));
+			}
+			expect(label, "group selected", multi(), expected);
+			log(label + " selected " + selectionDiag());
+			int list = from;
+			for (int press = 1; press <= 6; press++) {
+				// variant 1 presses with the input type of the last mouse click: what the game believes after a key differs by version
+				if (variant == 0) {
+					inputType("KEYBOARD_OTHER", "KEYBOARD_ARROW");
+				}
+				boolean used = realKey(GuiCompat.KEY_ENTER, 0);
+				sleep(900);
+				list = 1 - list;
+				log(label + " press " + press + " " + selectionDiag());
+				expect(label + "." + press, "enter used", used, true);
+				expect(label + "." + press, "selection kept", multi(), expected);
+				expect(label + "." + press, "selection is in the list the packs went to", multiList(), list);
+				List<String> where = list == 0 ? modelAvail() : modelSel();
+				expect(label + "." + press, "packs went across", where.containsAll(group), true);
+			}
+			// a plain click on one of the group collapses it to that pack (Explorer); the next group starts clean
+			double[] collapse = row(list, idx(list, group.get(0)));
+			pointer(collapse[0], collapse[1]);
+			inputType("MOUSE");
+			HELD = true;
+			realButton(com.mojang.blaze3d.platform.InputConstants.PRESS, 0);
+			realButton(0, 0);
+			HELD = false;
+			sleep(600);
+			expect(label, "a plain click ends the group", multi().size() <= 1, true);
+		}
+	}
+
+	/**
+	 * V: screenshots of the selection outlines while they move (judged by eye: the files land in screenshots/). The delays are
+	 * short on purpose, the pictures show the outline in the middle of its motion.
+	 */
+	static void outlineMotion() {
+		onRender(() -> {
+			ctl().list(0).setSelected(null);
+			ctl().list(1).setSelected(null);
+		});
+		sleep(600);
+		double[] a = row(0, 0);
+		double[] b = row(0, 3);
+		press(a, 0);
+		release(a);
+		sleep(700);
+		shot("V1-single-at-rest");
+		press(b, 0);
+		release(b);
+		sleep(55);
+		shot("V2-single-gliding");
+		press(a, 0);
+		release(a);
+		sleep(35);
+		shot("V3-single-turning-back");
+		sleep(900);
+		// multi-selection: a pack picked next to the selected one, then taken away again, then picked again
+		onRender(() -> {
+			ctl().list(0).setSelected(null);
+			ctl().list(1).setSelected(null);
+		});
+		inputType("MOUSE");
+		ctrlClick(row(0, 1));
+		double[] c = row(0, 2);
+		double[] d = row(0, 3); // rows 1 to 3 are all on screen at scroll 0: row() would scroll the list for a lower one and shift every other row
+		sleep(700);
+		shot("V4-multi-at-rest");
+		pointer(c[0], c[1]);
+		HELD = true;
+		realButton(com.mojang.blaze3d.platform.InputConstants.PRESS, com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL);
+		realButton(0, com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL);
+		HELD = false;
+		sleep(45);
+		shot("V5-multi-growing");
+		for (int i = 0; i < 4; i++) { // fast back and forth
+			double[] at = i % 2 == 0 ? c : d;
+			pointer(at[0], at[1]);
+			HELD = true;
+			realButton(com.mojang.blaze3d.platform.InputConstants.PRESS, com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL);
+			realButton(0, com.mojang.blaze3d.platform.InputConstants.MOD_CONTROL);
+			HELD = false;
+			sleep(60);
+		}
+		shot("V6-multi-fast-toggling");
+		sleep(900);
+		shot("V7-multi-settled");
+	}
+
 	static void realDrag(String label, double[] from, double[] to) {
 		pointer(from[0], from[1]);
 		HELD = true;
@@ -398,6 +601,17 @@ public final class DragItSmoke {
 			onRender(() -> screen().setFocused(null));
 			log("initial " + state());
 			shot("01-initial");
+			String only = Files.exists(new File("smoke.only").toPath()) ? Files.readString(new File("smoke.only").toPath()).trim() : "";
+			if (!only.isEmpty()) { // run-smoke.ps1 -Only K / V: just that section
+				if (only.equals("K")) {
+					keyboardRoundTrips();
+				} else if (only.equals("V")) {
+					outlineMotion();
+				}
+				log("DONE");
+				sleep(1500);
+				Runtime.getRuntime().halt(0);
+			}
 
 			// geometry: every visible row must hit-test to itself, at scroll 0 and scrolled
 			for (double scroll : new double[]{0, 50}) {
@@ -622,6 +836,8 @@ public final class DragItSmoke {
 				expect(label, "key used", used, true);
 				expect(label, "both packs moved", target.containsAll(List.of(g1, g2)), true);
 			}
+			keyboardRoundTrips();
+			outlineMotion();
 			log("DONE");
 		} catch (Throwable t) {
 			log("FAILED " + t);

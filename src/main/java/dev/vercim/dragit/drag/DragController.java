@@ -7,11 +7,9 @@ import dev.vercim.dragit.mixin.accessor.PackSelectionModelAccessor;
 import dev.vercim.dragit.mixin.accessor.PackSelectionScreenAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -98,12 +96,13 @@ public final class DragController {
 	double pointerY;
 
 	private final Set<String> multi = new LinkedHashSet<>();
-	private final SelectionBands bands = new SelectionBands();
+	private final SelectionBands bands = new SelectionBands(false);
+	/** Vanilla's one-pack selection: one frame per list that glides to the selected pack. */
+	private final SelectionBands frames = new SelectionBands(true);
 	/** The multi-selection as the outline bands last saw it, to tell an edit of the selection from packs merely changing lists. */
 	private final Set<String> bandSelection = new HashSet<>();
 	/** Pack the outline of a newly selected run grows out of (the row that was selected before the click); consumed by the next frame. */
 	private String bandSeed;
-	private final Map<String, Double> selectionAlpha = new HashMap<>();
 	/** Vanilla's single selection (pack id) of each list as {@link #settleSelection} last saw it, to tell which one is the newer. */
 	private final String[] lastSelected = new String[2];
 	private int multiList = -1;
@@ -374,14 +373,21 @@ public final class DragController {
 	public void drawMultiSelection(GuiGraphics context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
 		int list = listOf(widget);
 		if (list >= 0) {
-			DragRenderer.drawSelection(context, bands, list, index, left, top, right, bottom);
+			DragRenderer.drawSelection(context, bands, list, index, left, top, right, bottom, DragItSettings.MULTI_SELECT_BORDER, DragItSettings.MULTI_SELECT_FILL);
 		}
 	}
 
-	/** Same for vanilla's single selection (the white frame), which the mod draws itself so that it can fade. */
-	public float selectionAlpha(TransferableSelectionList widget, String name) {
-		Double alpha = selectionAlpha.get(listOf(widget) + name);
-		return alpha == null ? 0F : alpha.floatValue();
+	/**
+	 * Same for vanilla's single selection (the white frame), which the mod draws itself so that it can glide from pack to pack
+	 * instead of vanishing at one and appearing at the other. Vanilla's colours: a white border while the list has the keyboard
+	 * focus, grey otherwise, on black.
+	 */
+	public void drawSingleSelection(GuiGraphics context, TransferableSelectionList widget, int index, int left, int top, int right, int bottom) {
+		int list = listOf(widget);
+		if (list >= 0) {
+			int border = widget.isFocused() ? 0xFFFFFFFF : 0xFF808080;
+			DragRenderer.drawSelection(context, frames, list, index, left, top, right, bottom, border, 0xFF000000);
+		}
 	}
 
 	/**
@@ -412,7 +418,6 @@ public final class DragController {
 
 	private void updateHighlightAlpha() {
 		settleSelection();
-		double blend = 1.0 - Math.exp(-dt * DragItSettings.SELECTION_FADE_RATE);
 		boolean edited = !multi.equals(bandSelection);
 		if (edited) {
 			bandSelection.clear();
@@ -422,34 +427,10 @@ public final class DragController {
 			bands.update(i, ListGeometry.names(list(i)), multi, edited, bandSeed, dt);
 		}
 		bandSeed = null;
-		Set<String> selected = new HashSet<>();
 		for (int i = 0; i < 2; i++) {
 			TransferableSelectionList.PackEntry entry = ListGeometry.selected(list(i));
-			if (entry != null) {
-				selected.add(i + entry.getPackId());
-			}
+			frames.update(i, ListGeometry.names(list(i)), entry == null ? Set.of() : Set.of(entry.getPackId()), true, null, dt);
 		}
-		fade(selectionAlpha, selected, blend);
-	}
-
-	/** Eases every key of {@code alphas} towards 1 if it is in {@code active}, else towards 0 (and forgets it once invisible). */
-	private static void fade(Map<String, Double> alphas, Set<String> active, double blend) {
-		if (active.isEmpty() && alphas.isEmpty()) {
-			return;
-		}
-		for (String key : active) {
-			double alpha = alphas.getOrDefault(key, 0.0);
-			alpha += (1.0 - alpha) * blend;
-			alphas.put(key, alpha > 0.995 ? 1.0 : alpha);
-		}
-		alphas.entrySet().removeIf(entry -> {
-			if (active.contains(entry.getKey())) {
-				return false;
-			}
-			double alpha = entry.getValue() * (1.0 - blend);
-			entry.setValue(alpha);
-			return alpha < 0.01;
-		});
 	}
 
 	/** Forgets the selection but not the anchor (Explorer keeps its "focus item" after a plain click). */
@@ -679,6 +660,9 @@ public final class DragController {
 			clearMulti();
 		} else {
 			multiList = to;
+			// From 1.21.10 every rebuild of the lists that vanilla runs for a moved pack also selects that pack in its list. The
+			// group keeps the selection, and a leftover single one would be taken for a click on that pack, which ends the group.
+			clearVanillaSelection();
 		}
 	}
 
