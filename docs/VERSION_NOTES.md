@@ -380,3 +380,55 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 - 2026-10-12, mod 0.0.1-alpha: `clean buildAndCollect` passes (both `verifyJar` checks). The Mixin audit ran on both dev clients: all mixins applied, no errors (see [Mixin audit](#mixin-audit)).
 - 2026-10-12: the scripted gesture smoke test (see the 1.21.10 entry) also ran on the Fabric dev client of 1.21.1 after the list helpers were reworked for 1.21.10; all checks passed.
 - Manual packaged-JAR gesture test of 0.0.1-alpha: not recorded here — fill in on the release run.
+
+### MC 1.20.1 — Fabric / Forge
+
+Targets: `1.20.1-fabric`, `1.20.1-forge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-14
+
+The first target older than the baseline and the first one on **Forge** instead of NeoForge (NeoForge starts at 1.20.2). Java 17. The GUI is still the pre-1.20.2 one: lists are `AbstractSelectionList` with protected bounds fields, there is no `repositionElements`.
+
+#### Dependencies
+```properties
+java_version=17                     # versions/1.20.1-*/gradle.properties
+fabric_loader_version=0.19.5        # min 0.14.21 (versions/1.20.1-fabric/gradle.properties)
+forge_version=1.20.1-47.4.10        # versions/1.20.1-forge/gradle.properties
+forge_loader_version_range=[47,)
+minecraft_version_range=[1.20.1,1.20.2)   # Forge descriptor
+pack_format=15                      # the pack.mcmeta Forge wants
+```
+Official Mojang mappings on both loaders. Forge 1.20.1 is built with ModDevGradle Legacy (`net.neoforged.moddev.legacyforge`, same version as the regular plugin, `build.forge.gradle.kts`). Only the dev-runtime Fabric Loader 0.19.5 has been run; the 0.14.21 minimum is what Fabric API requires on 1.20.1, not a tested floor. The Forge dependency range starts at the version the JAR was built and run with (47.4.10, the recommended build at the time; 47.4.28 was the latest), not at a tested floor. Forge 1.20.1 ships Mixin 0.8.5 and **no MixinExtras** (Fabric Loader's own copy is unused here).
+
+#### API differences (vs. baseline 1.21.1)
+| Area | Baseline (1.21.1) | 1.20.1 | Where / condition |
+|---|---|---|---|
+| Layout hook | `PackSelectionScreen.repositionElements()` | not there; `init()` (a resize runs it again) | `mixin/PackSelectionScreenMixin.java`, `//? if >=1.21.1` |
+| Selection frame | `TransferableSelectionList.renderSelection(...)`, wrapped | declared only by `AbstractSelectionList` (`(GuiGraphics, int ×5)`); plain `@Inject` at `HEAD`, the same shape as from 1.21.10 | `mixin/TransferableSelectionListMixin.java`, `//? if >=1.21.10 \|\| <1.21.1` |
+| Row hook | `@WrapMethod` on `PackEntry.render` | plain Mixin: `@ModifyVariable` for the hover flag, `@Inject` at `HEAD` (can cancel for the lifted row) and at `RETURN` (pops the matrix); the pending state is kept in a `@Unique` field | `mixin/PackEntryMixin.java`, `//? if <1.21.1`; the `>=1.21.1` branches share `dragit$begin` / `dragit$end` / `dragit$hover` with it |
+| List bounds | widget getters `getX/getY/getRight/getBottom/getWidth/getHeight` | protected fields `x0/y0/x1/y1/width/height`; the getters (`getLeft`, `getTop`, ...) exist **on Forge only** (its patch adds them). Both loaders read them through `getRectangle()` | `ListGeometry.left/top/right/bottom/width/height`, `//? if >=1.21.1` |
+| Scrollbar shown | `scrollbarVisible()` (invoker) | `getMaxScroll() > 0` (public); the accessor interface stays empty | `ListGeometry.scrollbarVisible`, `mixin/accessor/AbstractScrollAreaAccessor.java` |
+| Re-clamp the scroll offset | `clampScrollAmount()` | `setScrollAmount(getScrollAmount())` (the setter clamps) | `ListGeometry.clampScroll` |
+| Row hit test | arithmetic on `itemHeight` / `headerHeight` | the same, and vanilla also refuses the scrollbar strip (`x < getScrollbarPosition()`) | `ListGeometry.hit`, `//? if <1.21.1` |
+| `Pack.Position.insert(List<T>, T, Function<T, ?>, boolean)` | the function reads the pack's `PackSelectionConfig` (`Pack::selectionConfig`) | reads the `Pack` itself (identity) | `DropTarget.compute` |
+| Mixin config | `compatibilityLevel` `JAVA_21` | `JAVA_17`, set by the build scripts' `processResources` filter | `build.fabric.gradle.kts`, `build.forge.gradle.kts` |
+
+Unchanged, checked with `javap` on the Forge and the Loom jars and by the scripted test: `PackSelectionScreen` fields (`availablePackList`, `selectedPackList`, `model`), `onClose`, `clearSelected`; `PackSelectionModel` (`selected`, `unselected`, `onListChanged` as a `Runnable`, `updateRepoSelectedList`); `PackEntry` (`pack`, `parent`, `render(GuiGraphics, 7 × int, boolean, float)`, `getPackId`, `keyboardSelection`); `TransferableSelectionList.screen` and `getScrollbarPosition`; `AbstractSelectionList.itemHeight` / `headerHeight` and the row geometry (`getRowTop` = `y0 + 4 - scroll + i * itemHeight + headerHeight`, `getRowLeft`, `getRowWidth` = `width`); `MouseHandler.onPress(long, int, int, int)` with `minecraft` / `xpos` / `ypos`; `Screen.render` / `keyPressed(int, int, int)`; `Window` size methods and `getWindow()`; `GuiGraphics` (`fill`, scissor, `drawString`, `pose()` as a `PoseStack`); `InputConstants` constants.
+
+#### Forge integration
+- **Mixin config:** 1.20.1 has no `[[mixins]]` table in `mods.toml`; the JAR manifest names the config (`MixinConfigs: dragit.mixins.json`, set in `build.forge.gradle.kts`).
+- **SRG names:** Forge 1.20.1 runs on SRG names, so the Mixin annotation processor (`org.spongepowered:mixin:0.8.5:processor`, configured through the `mixin { }` block of the legacy plugin) writes `dragit.refmap.json`, and the `processResources` filter adds the `"refmap"` line to the Forge copy of `dragit.mixins.json` (the shared file names none). `@Shadow` fields are not in the refmap: `reobfJar` renames them in the classes. The release JAR is the `reobfJar` output in `build/libs`; the Mojang-named `jar` goes to `build/devlibs`. `verifyJar` checks the manifest attribute, the refmap and the mixin classes.
+- **`mods.toml`:** dependencies use `mandatory = true` (not `type = "required"`); `displayTest = "IGNORE_ALL_VERSION"` because the mod has no server part; `logoBlur = false` keeps the pixel icon sharp.
+- **`pack.mcmeta`:** Forge 1.20.1 shows a loading-warning screen ("failed to load a valid ResourcePackInfo") for a mod without one. It is a template (`${pack_format}`) that only the Forge build expands; the other two loaders exclude it.
+- **`@Mod`:** `dev.vercim.dragit.forge.DragItForge`, empty, like `DragItNeoForge`.
+
+#### Quirks
+- The dev client of Forge 1.20.1 runs on Mojang names and does not read the refmap (log: "Reference map 'dragit.refmap.json' ... could not be read. If this is a development environment you can ignore this message"). So the dev run does **not** exercise the SRG path; only the packaged JAR in a real Forge install does.
+- A test mixin that targets a class of this mod needs `remap = false`, or the Forge annotation processor fails the build ("Unable to locate obfuscation mapping"; `tools/smoke/HeldTestMixin.java`).
+- In the vanilla 1.20.1 pack screen a click on the body of a row selects nothing (only the arrows react); the single selection comes from keyboard navigation (`setFocused`). `TransferableSelectionList.keyPressed` sends the selected pack across on Space and Enter (key codes 32 and 257 only, no keypad Enter); `DragController.toggleSingle` does the same for Space, which is harmless here. The scripted test's R5 selects the pack through `setFocused` / `setSelected` when the click selected nothing.
+- The Forge `AbstractSelectionList` patch adds `getLeft/getTop/getRight/getBottom/getWidth/getHeight`; code that compiles on Forge can still fail on Fabric. Test both loaders.
+- The scripted test has no search box (R6 and R7, S7) on this version, as on 1.21.1 and 1.21.4.
+- `PackSelectionScreen.init()` is `protected`, which does not matter to a Mixin injection. It runs on the first layout and on every resize, where newer versions run `repositionElements`; the dialog-return case of the newer hook has not been checked on 1.20.1.
+
+#### Verified
+- 2026-10-14, mod 1.0.0: `:1.20.1-fabric:build` and `:1.20.1-forge:build` pass (`verifyJar` included). Scripted gesture test on both dev clients, run by hand on macOS (the same steps as `tools/smoke/run-smoke.ps1`): **22 PASS, 0 FAIL, DONE** each; screenshots show the lifted card, its count badge, the placeholder and the list frame drawn correctly; no Mixin error in `latest.log`. The Mixin audit helper was not added: the test loads every target class (screen, model, both lists, entries, `AbstractSelectionList`, `MouseHandler`) and `defaultRequire` is 1, so a mixin that did not apply would have crashed it.
+- 2026-10-14, regression check of the shared code the port touched (`PackEntryMixin` split into `dragit$begin` / `dragit$end` / `dragit$hover`, the `ListGeometry` bounds helpers), same by-hand run on macOS: `1.21.1-fabric` 22 PASS / 0 FAIL, `1.21.4-neoforge` 22 PASS / 0 FAIL. `1.21.10-fabric` (36 PASS, R3 fails) and `26.3-neoforge` (31 PASS; T1, T3, T5 and R3 fail, then the harness throws `ArrayIndexOutOfBoundsException`) fail on this Mac **exactly the same way with the unchanged `main` tree** (checked in a separate worktree), so they are not caused by the port; the cause is not found yet (the by-hand runs differ from `run-smoke.ps1` runs on Windows, where these checks passed). `clean buildAndCollect` passes for all eighteen targets.
+- Manual packaged-JAR gesture test on 1.20.1: not done yet (Fabric ☐ Forge ☐). For Forge this is what covers the SRG refmap; the reobfuscated JAR was only inspected (every target string is in the refmap with its `m_` / `f_` name, shadow fields and calls carry SRG names).

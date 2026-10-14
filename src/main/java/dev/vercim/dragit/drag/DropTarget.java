@@ -82,7 +82,7 @@ final class DropTarget {
 		for (int i = 0; i < lists.length; i++) {
 			TransferableSelectionList list = lists[i];
 			int pad = DragItSettings.COLUMN_PADDING;
-			if (pointerX >= list.getX() - pad && pointerX <= list.getRight() + pad && pointerY >= list.getY() && pointerY <= list.getBottom()) {
+			if (pointerX >= ListGeometry.left(list) - pad && pointerX <= ListGeometry.right(list) + pad && pointerY >= ListGeometry.top(list) && pointerY <= ListGeometry.bottom(list)) {
 				target = i;
 				break;
 			}
@@ -124,7 +124,11 @@ final class DropTarget {
 				}
 			}
 		} else if (target == DragController.SELECTED) {
+			//? if >=1.21.1 {
 			anchor = dragged.getDefaultPosition().insert(new ArrayList<>(base), dragged, Pack::selectionConfig, true);
+			//?} else {
+			/*anchor = dragged.getDefaultPosition().insert(new ArrayList<>(base), dragged, java.util.function.Function.identity(), true);
+			*///?}
 		} else {
 			anchor = base.size();
 		}

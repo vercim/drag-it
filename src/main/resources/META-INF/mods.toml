@@ -1,0 +1,32 @@
+modLoader = "javafml"
+loaderVersion = "${forge_loader_version_range}"
+license = "LGPL-3.0-only"
+
+[[mods]]
+modId = "dragit"
+version = "${version}"
+displayName = "Drag It!"
+logoFile = "icon.png"
+logoBlur = false
+displayURL = "https://github.com/vercim/drag-it"
+issueTrackerURL = "https://github.com/vercim/drag-it/issues"
+authors = "vercim"
+# The mod has no server part: a server without it, or a client without it on a modded server, must not show a red cross.
+displayTest = "IGNORE_ALL_VERSION"
+description = '''
+Smooth drag & drop for the resource pack selection screen.
+'''
+
+[[dependencies.dragit]]
+modId = "forge"
+mandatory = true
+versionRange = "[${forge_version},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.dragit]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "CLIENT"

@@ -8,7 +8,7 @@ plugins {
 stonecutter active file(".sc_active_version")
 
 stonecutter parameters {
-    constants.match(current.project.substringAfterLast('-'), "fabric", "neoforge")
+    constants.match(current.project.substringAfterLast('-'), "fabric", "neoforge", "forge")
 
     // Minecraft 26.1 renamed GuiGraphics to GuiGraphicsExtractor and "render" to "extract" in the GUI hooks the mod uses.
     // These are pure renames, so the source keeps the older names and they are swapped in for 26.1 and newer.

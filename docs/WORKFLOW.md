@@ -8,6 +8,8 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 
 | Target | Loader | Java |
 |---|---|---:|
+| `1.20.1-fabric` | Fabric | 17 |
+| `1.20.1-forge` | Forge | 17 |
 | `1.21.1-fabric` | Fabric | 21 |
 | `1.21.1-neoforge` | NeoForge | 21 |
 | `1.21.4-fabric` | Fabric | 21 |
@@ -25,11 +27,11 @@ Drag It! uses one [Stonecutter](https://stonecutter.kikugie.dev/) repository: a 
 | `26.3-fabric` | Fabric | 25 |
 | `26.3-neoforge` | NeoForge | 25 |
 
-The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge, `java_version=25` for the 26.x targets) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
+The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). The active target for the convenience tasks is stored in `.sc_active_version`. Dependency values shared by all targets are in the root [`gradle.properties`](../gradle.properties); values that differ per target (`fabric_loader_min_version` for Fabric, `neoforge_version` and `minecraft_version_range` for NeoForge, `forge_version`, `forge_loader_version_range`, `minecraft_version_range` and `pack_format` for Forge, `java_version=17` for the 1.20.1 targets and `java_version=25` for the 26.x ones) are in `versions/<target>/gradle.properties`, which Gradle reads for that target only.
 
 ## Requirements
 
-- JDK 25+ to launch Gradle (Fabric Loom 1.18 refuses to load on anything older); the toolchain that compiles the mod (Java 21, or Java 25 for the 26.x targets) is provisioned automatically. CI installs JDK 21 and 25.
+- JDK 25+ to launch Gradle (Fabric Loom 1.18 refuses to load on anything older); the toolchain that compiles the mod (Java 21, Java 17 for 1.20.1, or Java 25 for the 26.x targets) is provisioned automatically. CI installs JDK 17, 21 and 25.
 - Windows: PowerShell, use `.\gradlew.bat`.
 - macOS / Linux: use `./gradlew` (run `chmod +x gradlew` if it is not executable).
 - To force a specific launcher JDK: macOS `export JAVA_HOME=$(/usr/libexec/java_home -v 25)`, Windows `$env:JAVA_HOME = "C:\path\to\jdk-25"`.
@@ -71,13 +73,13 @@ macOS / Linux:
 
 Do not use `clean` routinely: it discards Gradle and Minecraft preparation work.
 
-Outputs: collected release JARs are in `build/libs/` (for example `dragit-0.0.1-alpha+1.21.1-fabric.jar` and `dragit-0.0.1-alpha+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`.
+Outputs: collected release JARs are in `build/libs/` (for example `dragit-0.0.1-alpha+1.21.1-fabric.jar` and `dragit-0.0.1-alpha+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`. Forge 1.20.1 also leaves a Mojang-named `-dev` JAR in `versions/1.20.1-forge/build/devlibs/`; the release JAR is the reobfuscated one in `build/libs/`.
 
 Switch the active target only with the `Set active project to <target>` task (all of them are listed by `gradlew tasks --group stonecutter`). It updates `.sc_active_version` **and** rewrites the version and loader comment blocks in `src/`. Editing `.sc_active_version` by hand is not enough: the next build compiles `src/` as it is and fails with errors such as "cannot find symbol `getScrollAmount()`". `Refresh active project` repairs comments left in a wrong state. Before committing, run `Reset active project` (back to `1.21.1-fabric`, the configured `vcsVersion`); the diff must not contain comment flips or a changed `.sc_active_version`.
 
 ## Conditional sources
 
-Shared code is ordinary Java. Loader-specific code uses Stonecutter conditions; the inactive loader's code appears commented out in the source tree. The only loader-specific file today is the NeoForge `@Mod` class:
+Shared code is ordinary Java. Loader-specific code uses Stonecutter conditions; the inactive loader's code appears commented out in the source tree. The only loader-specific files today are the NeoForge and Forge `@Mod` classes (`//? forge { … *///?}` works the same way). The NeoForge one:
 
 ```java
 package dev.vercim.dragit.neoforge;
@@ -106,11 +108,11 @@ Documentation-only changes (including `docs/`, `README.md`, `CHANGELOG.md`) do n
 
 `build` runs `verifyJar` on every target. It opens the release JAR and fails when:
 
-- the loader descriptor (`fabric.mod.json` or `META-INF/neoforge.mods.toml`) is missing, still has `${...}` placeholders, or declares the wrong mod id;
-- the descriptor does not register `dragit.mixins.json`;
-- a class named in the Mixin config is missing from the JAR (or a `refmap` it names, if there is one);
+- the loader descriptor (`fabric.mod.json`, `META-INF/neoforge.mods.toml` or `META-INF/mods.toml`) is missing, still has `${...}` placeholders, or declares the wrong mod id;
+- the descriptor does not register `dragit.mixins.json` (Forge 1.20.1: the `MixinConfigs` manifest attribute does not);
+- a class named in the Mixin config is missing from the JAR (or a `refmap` it names, if there is one; the Forge config must name its refmap, and the JAR must contain it);
 - the license file is not bundled;
-- the other loader's descriptor or classes leaked into the JAR, or the NeoForge `@Mod` class is missing.
+- another loader's descriptor or classes leaked into the JAR, or the NeoForge / Forge `@Mod` class is missing (Forge also needs its `pack.mcmeta`).
 
 This guards against the failure that broke Handycam 1.3.2: a JAR that loads while every injection silently does nothing. It does **not** check that Mixin target names exist; see [Mixin audit](VERSION_NOTES.md#mixin-audit).
 
@@ -133,6 +135,7 @@ A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` ho
 - Close every running dev client and Gradle run first; a running one holds the Gradle lock.
 - Each target takes a few minutes. The script prints one verdict per target (`OK`, `FAIL`, `NO-LOG`, `INCOMPLETE`, `TIMEOUT`, `MIXIN-ERROR`, ...), writes `build/smoke/summary.txt`, and exits non-zero unless every target is `OK`. Details are in `versions/<target>/run/smoke.log` and `build/smoke/<target>.*.log`.
 - A new target needs its `pack_format` in the table at the top of `run-smoke.ps1`; the script refuses to run a target it has no format for.
+- Without PowerShell (macOS / Linux) the same steps work by hand: `Set active project to <target>`, copy the four harness files into `src/` and list the three test mixins in `dragit.mixins.json` after `MouseHandlerMixin`, write the target's `pack_format` into `versions/<target>/run/smoke.format` and `onboardAccessibility:false` into its `options.txt`, run `:<target>:runClient`, read `run/smoke.log` and `run/logs/latest.log`, then remove the harness and `Reset active project`. This is how 1.20.1 was run.
 - When adding a Minecraft version or loader, run it for **every** new target and record the result in [VERSION_NOTES.md](VERSION_NOTES.md). The script is Windows-only (like the `.\gradlew.bat` commands here).
 
 ## Packaged-JAR validation
@@ -141,6 +144,7 @@ IDE runs are not enough for loader or Mixin changes. Before releasing, with a cl
 
 - **Fabric:** Fabric Loader only, without Fabric API; then once more with Fabric API.
 - **NeoForge:** NeoForge only.
+- **Forge (1.20.1):** Forge only. This is the run that proves the SRG refmap: the dev client runs on Mojang names and never reads it.
 
 On each:
 
@@ -155,7 +159,8 @@ On each:
 - repeat the basics on the data pack screen (create a world → Data Packs);
 - from 1.21.10: type into the search box so that a list shows fewer packs, drag, re-order and send packs between the lists, and confirm each pack lands next to the packs you see (and that dropping at the end of a list never puts a pack below the hidden Default pack); clear the search and confirm the order is what the drops produced;
 - confirm the plain arrows and clicks still behave like vanilla, and switch GUI scale mid-screen without a crash;
-- confirm the mod list shows the pixel icon sharp (NeoForge: `iconBlur = false` from 26.2, `logoBlur = false` before), and that 26.2+ shows no "deprecated `logoFile`" loading warning.
+- confirm the mod list shows the pixel icon sharp (NeoForge: `iconBlur = false` from 26.2, `logoBlur = false` before; Forge: `logoBlur = false`), and that 26.2+ shows no "deprecated `logoFile`" loading warning and Forge 1.20.1 no "failed to load a valid ResourcePackInfo" one;
+- 1.20.1: a click on a pack row selects nothing in vanilla (only the arrows react); select with Ctrl+click / Shift+click (the mod's own selection) or with the keyboard, and confirm Enter and Space send it across.
 
 ## Changelog
 
@@ -208,9 +213,10 @@ $env:MODRINTH_TOKEN = "x"
 ## Troubleshooting
 
 - **"Dependency requires at least JVM runtime version 25"** → Gradle was launched with an older JDK; launch it with JDK 25+ (`JAVA_HOME`, or `setup-java` in CI).
-- **Transparent world in dev** → Gradle is using the wrong JDK; use the target's own toolchain (Java 21, or 25 for 26.x).
+- **Transparent world in dev** → Gradle is using the wrong JDK; use the target's own toolchain (Java 21; 17 for 1.20.1; 25 for 26.x).
 - **"Cannot find symbol" in a generated target** → check the active Stonecutter target and its conditional blocks, then re-sync Gradle.
 - **Wrong client runs, or "cannot find symbol" in `src/` right after switching target** → switch with `Set active project to <target>` (see [Commands](#commands)), not by editing `.sc_active_version`.
 - **`Permission denied` when moving or deleting source directories on Windows** → a Gradle daemon holds the files; run `.\gradlew.bat --stop`.
 - **NeoForge says the mod id is invalid** → NeoForge ids match `[a-z][a-z0-9_]{1,63}`; hyphens are rejected. Keep `mod_id=dragit`.
+- **A NeoForge dev client hangs at startup on macOS** (the log stops after the mod list; a thread dump shows the main thread waiting in `LoadingScreenRenderer` and `fml-loadingscreen` inside `SDL_GL_SwapWindow`) → the early loading screen blocks while its window is covered or the screen is not active. Set `earlyWindowControl = false` in `versions/<target>/run/config/fml.toml`; the dev client does not need the screen.
 - **`verifyJar` fails** → the message names the missing entry; inspect the JAR with `unzip -l`. A mod that loads but does nothing in the packaged JAR usually means the Mixin config is not registered, or a Mixin target name no longer exists.
