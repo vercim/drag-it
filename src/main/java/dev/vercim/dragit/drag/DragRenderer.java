@@ -3,7 +3,7 @@ package dev.vercim.dragit.drag;
 import dev.vercim.dragit.DragItSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 
 /** Draws the drop placeholder / blocked marker and the lifted entry. Pure drawing; all state lives in {@link DragController}. */
@@ -11,7 +11,7 @@ final class DragRenderer {
 	private DragRenderer() {
 	}
 
-	static void render(DragController c, GuiGraphicsExtractor context, float delta) {
+	static void render(DragController c, GuiGraphics context, float delta) {
 		for (int i = 0; i < 2; i++) {
 			drawIndicator(c, context, i);
 		}
@@ -20,7 +20,7 @@ final class DragRenderer {
 		}
 	}
 
-	private static void drawIndicator(DragController c, GuiGraphicsExtractor context, int index) {
+	private static void drawIndicator(DragController c, GuiGraphics context, int index) {
 		DragController.Indicator indicator = c.indicators[index];
 		if (indicator.alpha <= 0.005) {
 			return;
@@ -31,7 +31,7 @@ final class DragRenderer {
 		double a = indicator.alpha;
 
 		int right = ListGeometry.frameRight(list);
-		context.enableScissor(list.getX(), list.getY(), right, list.getBottom());
+		context.enableScissor(ListGeometry.left(list), ListGeometry.top(list), right, ListGeometry.bottom(list));
 		int x = ListGeometry.cellLeft(list);
 		int width = ListGeometry.cardWidth(list);
 		int top = (int) Math.round(ListGeometry.originY(list) + indicator.y);
@@ -45,10 +45,10 @@ final class DragRenderer {
 		context.disableScissor();
 
 		// Frame around the list that would receive the pack (the scrollbar stays outside of it).
-		GuiCompat.outline(context, list.getX(), list.getY(), right - list.getX(), list.getHeight(), scale(color, 0.55 * a));
+		GuiCompat.outline(context, ListGeometry.left(list), ListGeometry.top(list), right - ListGeometry.left(list), ListGeometry.height(list), scale(color, 0.55 * a));
 	}
 
-	private static void drawGhost(DragController c, GuiGraphicsExtractor context, float delta) {
+	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
 		boolean settling = c.phase == DragController.Phase.SETTLING;
 		if (settling) {
 			// Gliding cards may head for rows that are scrolled out of view; keep them inside the lists' area.
@@ -56,8 +56,8 @@ final class DragRenderer {
 			TransferableSelectionList second = c.list(1);
 			int pad = DragItSettings.COLUMN_PADDING;
 			context.enableScissor(
-				Math.min(first.getX(), second.getX()) - pad, Math.min(first.getY(), second.getY()),
-				Math.max(ListGeometry.frameRight(first), ListGeometry.frameRight(second)) + pad, Math.max(first.getBottom(), second.getBottom())
+				Math.min(ListGeometry.left(first), ListGeometry.left(second)) - pad, Math.min(ListGeometry.top(first), ListGeometry.top(second)),
+				Math.max(ListGeometry.frameRight(first), ListGeometry.frameRight(second)) + pad, Math.max(ListGeometry.bottom(first), ListGeometry.bottom(second))
 			);
 		}
 		// The rest of a dropped stack glides below the card the cursor held.
@@ -74,7 +74,7 @@ final class DragRenderer {
 
 	/** One lifted card; {@code count} above 1 stacks cards under it and puts the number of dragged packs on it. */
 	private static void drawCard(
-		DragController c, GuiGraphicsExtractor context, float delta, TransferableSelectionList list, String name,
+		DragController c, GuiGraphics context, float delta, TransferableSelectionList list, String name,
 		double gx, double gy, double blocked, int count
 	) {
 		int row = ListGeometry.indexOf(list, name);
@@ -145,7 +145,7 @@ final class DragRenderer {
 	 * The slice of the multi-selection outline that falls on one row. {@code left..right} and {@code top..bottom} are the
 	 * row's whole cell (cells of neighbouring rows touch), so a band spanning several rows is drawn as one continuous shape.
 	 */
-	static void drawSelection(GuiGraphicsExtractor context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom) {
+	static void drawSelection(GuiGraphics context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom) {
 		int height = bottom - top;
 		for (SelectionBands.Band band : bands.bands(list)) {
 			double from = Math.max(band.top, index);

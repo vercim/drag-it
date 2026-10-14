@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack and data pack selection screens. Fabric + NeoForge, Java 21 (Java 25 from Minecraft 26.1), Mojang names (official mappings; 26.1 is unobfuscated), one shared source tree built with Stonecutter. Build, CI, and release setup mirror [Handycam](https://github.com/vercim/handycam); keep the two in step.
+Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack and data pack selection screens. Fabric + NeoForge (Forge on 1.20.1), Java 21 (Java 17 for 1.20.1, Java 25 from Minecraft 26.1), Mojang names (official mappings; 26.1 is unobfuscated), one shared source tree built with Stonecutter. Build, CI, and release setup mirror [Handycam](https://github.com/vercim/handycam); keep the two in step.
 
 `AGENTS.md` is a symlink to this file.
 
@@ -16,21 +16,22 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 ## Current state
 
 - Version `0.0.1-alpha` is published (tag `v0.0.1-alpha`, GitHub pre-release, 2026-10-11). Later work collects under `## [Unreleased]` in `CHANGELOG.md`; `mod_version` is bumped, and that section renamed, at the next release. Never edit a published version's section.
-- Targets: `1.21.1`, `1.21.4`, `1.21.10`, `1.21.11`, `26.1`, `26.1.2`, `26.2`, `26.3`, each as `<version>-fabric` and `<version>-neoforge`, declared once in `settings.gradle.kts`. Values that differ per target (`fabric_loader_min_version`, `neoforge_version`, `minecraft_version_range`, and `java_version` for the 26.x targets) live in `versions/<target>/gradle.properties`; the rest is in the root `gradle.properties`.
+- Targets: `1.21.1`, `1.21.4`, `1.21.10`, `1.21.11`, `26.1`, `26.1.2`, `26.2`, `26.3`, each as `<version>-fabric` and `<version>-neoforge`, plus `1.20.1` as `1.20.1-fabric` and `1.20.1-forge` (NeoForge starts at 1.20.2), declared once in `settings.gradle.kts`. Values that differ per target (`fabric_loader_min_version`, `neoforge_version` / `forge_version`, `minecraft_version_range`, `java_version` for the 1.20.1 and 26.x targets, `pack_format` for Forge) live in `versions/<target>/gradle.properties`; the rest is in the root `gradle.properties`.
 - The 1.21.4, 1.21.10 and 1.21.11 ports are merged into `main`; the 26.1, 26.1.2, 26.2 and 26.3 ports are in progress on `feature/minecraft-26-1-support`. All of them compile, `verifyJar` passes, and the Mixin audit and a scripted gesture test on the dev clients are clean on both loaders; the manual packaged-JAR gesture test is still open for each (see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)). 1.21.5-1.21.9 and 26.1.1 were skipped.
+- The 1.20.1 port (Fabric and Forge) is in progress on `feature/minecraft-1-20-1-support`: both targets build with `verifyJar` and pass the scripted gesture test on the dev clients; the Forge SRG path (the refmap) and the packaged-JAR gesture test are not run yet (see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
 
-- Mod id is `dragit` on both loaders. NeoForge only accepts `[a-z][a-z0-9_]{1,63}`, so a hyphenated id such as `drag-it` is invalid there. The repository, README links, and platform slugs keep `drag-it`.
-- No Fabric API and no other libraries. MixinExtras comes with both loaders; the Mixin API is on both classpaths.
-- Metadata pins Minecraft to exactly the target's version (one release, e.g. `[1.21.4,1.21.5)` on NeoForge); a JAR never claims a version it was not built and tested against.
+- Mod id is `dragit` on every loader. NeoForge only accepts `[a-z][a-z0-9_]{1,63}`, so a hyphenated id such as `drag-it` is invalid there. The repository, README links, and platform slugs keep `drag-it`.
+- No Fabric API and no other libraries. MixinExtras comes with Fabric and NeoForge, but **not with Forge 1.20.1** (Mixin 0.8.5 only): up to 1.21.1 exclusive the hooks are plain Mixin injectors, `@WrapMethod` is for 1.21.1 and newer. The Mixin API is on every classpath.
+- Metadata pins Minecraft to exactly the target's version (one release, e.g. `[1.21.4,1.21.5)` on NeoForge and Forge); a JAR never claims a version it was not built and tested against.
 
 ## Rules that must not be forgotten
 
-- When adding support for a new Minecraft version or loader, run the scripted gesture test (`.\tools\smoke\run-smoke.ps1`, see [docs/WORKFLOW.md](docs/WORKFLOW.md#scripted-gesture-test)) on the dev client of **every** new target (both loaders), each at least once, before calling the port done. A build, `verifyJar` or the Mixin audit does not count, and a target with no run recorded in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md) is untested; say so instead of writing "all passed".
+- When adding support for a new Minecraft version or loader, run the scripted gesture test (`.\tools\smoke\run-smoke.ps1`, see [docs/WORKFLOW.md](docs/WORKFLOW.md#scripted-gesture-test)) on the dev client of **every** new target (every loader of it), each at least once, before calling the port done. A build, `verifyJar` or the Mixin audit does not count, and a target with no run recorded in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md) is untested; say so instead of writing "all passed".
 - IDE-only runs prove nothing about loader integration; validate the packaged JAR from `build/libs/` in a clean client profile (steps in [docs/WORKFLOW.md](docs/WORKFLOW.md)).
-- Both JARs must register `dragit.mixins.json` and contain every mixin class, and loader-specific files must be absent from the other loader's JAR. `verifyJar` (part of `build`) enforces this; a missing registration makes the mod load while every injection silently does nothing.
+- Every JAR must register `dragit.mixins.json` and contain every mixin class, and loader-specific files must be absent from the other loaders' JARs. `verifyJar` (part of `build`) enforces this; a missing registration makes the mod load while every injection silently does nothing.
 - Mixin target strings are **not** checked at compile time: a wrong method or field name still builds and only fails when the game applies the mixin. After touching a target string or porting, check it in a running client (see "Mixin audit" in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)).
 - Build commands differ per OS (`.\gradlew.bat` on Windows, `./gradlew` on macOS/Linux); take them from [docs/WORKFLOW.md](docs/WORKFLOW.md) rather than guessing.
-- Gradle needs JDK 25+ to launch (Fabric Loom 1.18); the mod itself compiles with a Java 21 toolchain, and a Java 25 one for the 26.x targets (Minecraft 26.1 requires Java 25).
+- Gradle needs JDK 25+ to launch (Fabric Loom 1.18); the mod itself compiles with a Java 21 toolchain, a Java 17 one for the 1.20.1 targets, and a Java 25 one for the 26.x targets (Minecraft 26.1 requires Java 25).
 - A pushed `v<mod_version>` tag starts the release pipeline and publishes irreversibly; create and push it only as the last step of a release.
 
 ## Structure
@@ -53,20 +54,21 @@ src/main/java/dev/vercim/dragit/
     ScreenMixin.java               — Screen.render HEAD/TAIL and Screen.keyPressed HEAD, no-ops for non-pack screens
     PackSelectionScreenMixin.java  — owns the controller; cancels the gesture on re-layout and close
     PackEntryMixin.java            — @WrapMethod render: hides the lifted row, slides rows, draws the selection highlights
-    TransferableSelectionListMixin.java — renderSelection: skips vanilla's instant frame (targets AbstractSelectionList from 1.21.10)
+    TransferableSelectionListMixin.java — renderSelection: skips vanilla's instant frame (targets AbstractSelectionList in 1.20.1 and from 1.21.10)
     accessor/                      — accessors for PackSelectionScreen, PackSelectionModel, TransferableSelectionList,
                                      AbstractSelectionList, AbstractScrollArea (scrollbar), PackEntry
   neoforge/DragItNeoForge.java     — the @Mod class javafml requires; empty, the mod works through Mixin only
+  forge/DragItForge.java           — the same for Forge 1.20.1
 src/main/resources/
-  fabric.mod.json, META-INF/neoforge.mods.toml, dragit.mixins.json, icon.png
+  fabric.mod.json, META-INF/neoforge.mods.toml, META-INF/mods.toml (Forge), pack.mcmeta (Forge only), dragit.mixins.json, icon.png
 tools/smoke/                       — the scripted gesture test (harness + run-smoke.ps1); copied into src/ only while a run lasts, never part of the mod
 ```
 
-Platform entry points: Fabric has none (the mod is pure Mixin); NeoForge needs the `@Mod` class above.
+Platform entry points: Fabric has none (the mod is pure Mixin); NeoForge and Forge need the `@Mod` class above.
 
-Loader-specific code is wrapped in Stonecutter conditions (`//? fabric { … //?}`, `//? neoforge { … *///?}`); the inactive loader's code appears commented out in the source tree. Syntax and rules: [docs/WORKFLOW.md](docs/WORKFLOW.md#conditional-sources). Keep a `package` declaration outside the conditional block so the inactive target still compiles an empty file. Express Minecraft-version differences with narrow local conditions, never by copying files.
+Loader-specific code is wrapped in Stonecutter conditions (`//? fabric { … //?}`, `//? neoforge { … *///?}`, `//? forge { … *///?}`); the inactive loaders' code appears commented out in the source tree. Syntax and rules: [docs/WORKFLOW.md](docs/WORKFLOW.md#conditional-sources). Keep a `package` declaration outside the conditional block so the inactive target still compiles an empty file. Express Minecraft-version differences with narrow local conditions, never by copying files.
 
-Build scripts: `build.fabric.gradle.kts` (Loom via `loom-back-compat`, which applies the remapping Loom up to 1.21.11 and the unobfuscated one from 26.1; publishes `loomx.modJar`, that is `remapJar` or `jar`), `build.neoforge.gradle.kts` (ModDevGradle, publishes `jar`), `stonecutter.gradle.kts` (defines `runActiveClient`, `buildActive`, `clean`). Each loader script defines its own `verifyJar`, `buildAndCollect`, and `publishMods`.
+Build scripts: `build.fabric.gradle.kts` (Loom via `loom-back-compat`, which applies the remapping Loom up to 1.21.11 and the unobfuscated one from 26.1; publishes `loomx.modJar`, that is `remapJar` or `jar`), `build.neoforge.gradle.kts` (ModDevGradle, publishes `jar`), `build.forge.gradle.kts` (ModDevGradle Legacy for Forge 1.20.1: SRG refmap through the Mixin annotation processor, publishes the `reobfJar` output), `stonecutter.gradle.kts` (defines `runActiveClient`, `buildActive`, `clean`). Each loader script defines its own `verifyJar`, `buildAndCollect`, and `publishMods`.
 
 ## Architecture
 
@@ -96,7 +98,7 @@ DRAGGING --release / Esc--> SETTLING (the lifted card glides into its slot) --ar
 - Key, button and modifier codes come from `GuiCompat` (built on `InputConstants`), never from `GLFW.*`: Minecraft 26.3 moved from GLFW to SDL, the codes differ, and the `org.lwjgl.glfw` package is not even on its compile classpath. Where GLFW is still needed (`GuiCompat.leftButtonHeld`, the Shift bit before 26.3) it sits in a `//? if <26.3` branch. The open screen and the loading overlay are read through `GuiCompat.screen` / `overlayShown` (they moved to `Minecraft.gui` in 26.2).
 - A `@WrapMethod` handler must repeat the target's erased parameter types exactly, and a mixin cannot extend its own target. When a parameter is a class the mixin cannot name (for example the protected `AbstractSelectionList.Entry`), use an `@Inject` without arguments instead (`TransferableSelectionListMixin`).
 - From 1.21.10 the pack screen has a search box, so a list can show fewer packs than the model holds. A `DropTarget.Result` therefore carries two gaps: `gap` counts the shown rows (placeholder, sliding rows, marker) and `modelGap` is the index into the model's list that a drop applies. A pack lands right before the shown pack under the gap, or right after the last shown pack; hidden packs never decide the spot, but a hidden pinned pack still limits the allowed range.
-- Target strings use Mojang names. NeoForge applies them as they are; Fabric's Loom remaps them into the mixin classes at build time (the JAR has no refmap; from 26.1 nothing is remapped at all). A renamed method in a new Minecraft version fails at runtime, not at compile time.
+- Target strings use Mojang names. NeoForge applies them as they are; Forge 1.20.1 runs on SRG names, so the annotation processor turns them into a refmap at build time (the dev client does not read it, so only the packaged JAR proves it); Fabric's Loom remaps them into the mixin classes at build time (the JAR has no refmap; from 26.1 nothing is remapped at all). A renamed method in a new Minecraft version fails at runtime, not at compile time.
 - `Window.getWidth()` / `getHeight()` are the *framebuffer* size in Mojang names. Window pixels, which the mouse position is in, are `getScreenWidth()` / `getScreenHeight()`.
 - Add every new mixin class to `dragit.mixins.json`; `verifyJar` fails the build if a listed class is missing from the JAR.
 
@@ -104,11 +106,11 @@ Exact Minecraft signatures are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)
 
 ## Loader integration
 
-- **Mixins:** Fabric registers `dragit.mixins.json` in `fabric.mod.json` (`"mixins"`); NeoForge needs `[[mixins]]` in `META-INF/neoforge.mods.toml`.
-- **Entry point:** NeoForge's `javafml` refuses a mod without a `@Mod` class, so `DragItNeoForge` exists and is empty. It is `Dist.CLIENT` only.
-- **Metadata:** each JAR carries only its own descriptor (`fabric.mod.json` or `neoforge.mods.toml`); the build excludes the other.
+- **Mixins:** Fabric registers `dragit.mixins.json` in `fabric.mod.json` (`"mixins"`); NeoForge needs `[[mixins]]` in `META-INF/neoforge.mods.toml`; Forge 1.20.1 has no such table and finds it through the `MixinConfigs` manifest attribute.
+- **Entry point:** `javafml` refuses a mod without a `@Mod` class, so `DragItNeoForge` and `DragItForge` exist and are empty. The NeoForge one is `Dist.CLIENT` only; Forge 1.20.1 has no such parameter, `displayTest = "IGNORE_ALL_VERSION"` in `mods.toml` keeps the mod from showing a version mismatch.
+- **Metadata:** each JAR carries only its own descriptor (`fabric.mod.json`, `neoforge.mods.toml` or `mods.toml`); the builds exclude the others. Forge 1.20.1 also wants a `pack.mcmeta` (a startup warning screen without it); only its JAR has one.
 - **Icon:** `icon.png` is pixel art. NeoForge sets `iconBlur = false` (26.2+, where `logoFile` is deprecated and warns at startup unless `iconFile` is also set) and `logoBlur = false` (older versions); Mod Menu has no option for icon filtering, so nothing is configurable on Fabric.
-- **Plugins:** before changing the Gradle wrapper, check compatibility of Stonecutter, Loom Back Compat, Fabric Loom, and NeoForge ModDev.
+- **Plugins:** before changing the Gradle wrapper, check compatibility of Stonecutter, Loom Back Compat, Fabric Loom, NeoForge ModDev, and its Legacy Forge plugin (same version).
 
 ## Localization
 
@@ -134,5 +136,7 @@ Build and run problems (wrong JDK, locked files on Windows, `verifyJar` failures
 
 - **Mod loads but nothing is draggable in the packaged JAR** → the Mixin config is not registered, or a mixin target was renamed; check the log for Mixin errors and run `verifyJar`.
 - **NeoForge reports an invalid mod id** → ids may not contain hyphens; keep `mod_id=dragit`.
+- **Forge 1.20.1 shows "failed to load a valid ResourcePackInfo" at startup** → `pack.mcmeta` is missing from the mod's resources.
+- **Compiles on Forge 1.20.1 but not on Fabric** → the Forge patch adds `getLeft/getTop/getRight/getBottom/getWidth/getHeight` to `AbstractSelectionList`; use the `ListGeometry` helpers.
 - **A press on an arrow no longer works** → `MouseHandlerMixin` swallows the press until the cursor moves; the release must replay the click to vanilla (`onRelease` in `PENDING`).
 - **Pointer position is off by a constant factor** → `Window.getWidth()` was used instead of `getScreenWidth()` (see Mixin rules).

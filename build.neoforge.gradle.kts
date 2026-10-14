@@ -60,7 +60,7 @@ tasks.processResources {
     )
     inputs.properties(metadata)
     filesMatching("META-INF/neoforge.mods.toml") { expand(metadata) }
-    exclude("fabric.mod.json")
+    exclude("fabric.mod.json", "META-INF/mods.toml", "pack.mcmeta")
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -96,6 +96,8 @@ val verifyJar = tasks.register("verifyJar") {
             val configs = Regex("""\[\[mixins]]\s*\n\s*config\s*=\s*"([^"]+)"""").findAll(toml).map { it.groupValues[1] }.toList()
             check("$modId.mixins.json" in configs) { "neoforge.mods.toml does not register $modId.mixins.json" }
             check(zip.getEntry("fabric.mod.json") == null) { "fabric.mod.json leaked into the NeoForge JAR" }
+            check(zip.getEntry("META-INF/mods.toml") == null) { "mods.toml leaked into the NeoForge JAR" }
+            check(zip.entries().asSequence().none { it.name.startsWith("dev/vercim/dragit/forge/") }) { "Forge classes leaked into the NeoForge JAR" }
             check(zip.getEntry("dev/vercim/dragit/neoforge/DragItNeoForge.class") != null) { "the @Mod class is missing; javafml refuses to load the mod" }
             zip.getEntry("LICENSE_$modId") ?: error("LICENSE_$modId is missing from ${zip.name}")
 
