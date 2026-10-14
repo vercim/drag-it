@@ -80,6 +80,40 @@ final class SelectionBands {
 		boolean live;
 	}
 
+	/**
+	 * The part of a band that falls on one row, in pixels: {@code y0..y1} (exclusive) and whether the row draws the band's top and
+	 * bottom edge line.
+	 */
+	record Slice(int y0, int y1, boolean topEdge, boolean bottomEdge) {
+	}
+
+	/**
+	 * Works out the slice of {@code band} on row {@code index}, whose cell spans {@code top .. top + height} pixels, or {@code null}
+	 * if the band does not touch it. An edge belongs to the one row it lies in (the top edge to {@code [index, index + 1)}, the
+	 * bottom edge to {@code (index, index + 1]}). A slice thinner than half a pixel would round away together with that edge, and
+	 * the edge would be missing for the frames in which it glides across a row boundary or settles just short of one; the row that
+	 * owns an edge therefore keeps a one-pixel slice inside its own cell.
+	 */
+	static Slice slice(Band band, int index, int top, int height) {
+		double from = Math.max(band.top, index);
+		double to = Math.min(band.bottom, index + 1);
+		if (to < from) {
+			return null;
+		}
+		boolean topEdge = band.top >= index && band.top < index + 1;
+		boolean bottomEdge = band.bottom > index && band.bottom <= index + 1;
+		int y0 = top + (int) Math.round((from - index) * height);
+		int y1 = top + (int) Math.round((to - index) * height);
+		if (y1 <= y0) {
+			if (!topEdge && !bottomEdge) {
+				return null;
+			}
+			y0 = Math.min(y0, top + height - 1);
+			y1 = y0 + 1;
+		}
+		return new Slice(y0, y1, topEdge, bottomEdge);
+	}
+
 	/** Rows {@code start} (inclusive) to {@code end} (exclusive). */
 	private record Run(int start, int end) {
 	}
