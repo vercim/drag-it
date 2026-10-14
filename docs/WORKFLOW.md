@@ -73,7 +73,7 @@ macOS / Linux:
 
 Do not use `clean` routinely: it discards Gradle and Minecraft preparation work.
 
-Outputs: collected release JARs are in `build/libs/` (for example `dragit-0.0.1-alpha+1.21.1-fabric.jar` and `dragit-0.0.1-alpha+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`. Forge 1.20.1 also leaves a Mojang-named `-dev` JAR in `versions/1.20.1-forge/build/devlibs/`; the release JAR is the reobfuscated one in `build/libs/`.
+Outputs: collected release JARs are in `build/libs/` (for example `dragit-<mod_version>+1.21.1-fabric.jar` and `dragit-<mod_version>+1.21.1-neoforge.jar`); per-target output is in `versions/<target>/build/libs/`. Forge 1.20.1 also leaves a Mojang-named `-dev` JAR in `versions/1.20.1-forge/build/devlibs/`; the release JAR is the reobfuscated one in `build/libs/`.
 
 Switch the active target only with the `Set active project to <target>` task (all of them are listed by `gradlew tasks --group stonecutter`). It updates `.sc_active_version` **and** rewrites the version and loader comment blocks in `src/`. Editing `.sc_active_version` by hand is not enough: the next build compiles `src/` as it is and fails with errors such as "cannot find symbol `getScrollAmount()`". `Refresh active project` repairs comments left in a wrong state. Before committing, run `Reset active project` (back to `1.21.1-fabric`, the configured `vcsVersion`); the diff must not contain comment flips or a changed `.sc_active_version`.
 
@@ -134,6 +134,7 @@ A Mixin audit proves the mixins apply, not that gestures work. `tools/smoke/` ho
 ```
 
 - Close every running dev client and Gradle run first; a running one holds the Gradle lock.
+- The checks assume the pack lists the harness starts from. A `resourcePacks` line left in `versions/<target>/run/options.txt` by an earlier run changes the start state and makes the first checks (S*, T*) fail on it; delete that line (or the profile) before a full run.
 - Each target takes a few minutes. The script prints one verdict per target (`OK`, `FAIL`, `NO-LOG`, `INCOMPLETE`, `TIMEOUT`, `MIXIN-ERROR`, ...), writes `build/smoke/summary.txt`, and exits non-zero unless every target is `OK`. Details are in `versions/<target>/run/smoke.log` and `build/smoke/<target>.*.log`.
 - A new target needs its `pack_format` in the table at the top of `run-smoke.ps1`; the script refuses to run a target it has no format for.
 - Without PowerShell (macOS / Linux) the same steps work by hand: `Set active project to <target>`, copy the four harness files into `src/` and list the three test mixins in `dragit.mixins.json` after `MouseHandlerMixin`, write the target's `pack_format` into `versions/<target>/run/smoke.format` and `onboardAccessibility:false` and `soundCategory_master:0.0` (the script runs the client muted) into its `options.txt`, run `:<target>:runClient`, read `run/smoke.log` and `run/logs/latest.log`, then remove the harness and `Reset active project`. This is how 1.20.1 was run.

@@ -89,7 +89,7 @@ To find a renamed member when porting, compare the old and new mapping files fro
 
 ### MC 26.3 — Fabric / NeoForge
 
-Targets: `26.3-fabric`, `26.3-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-14
+Targets: `26.3-fabric`, `26.3-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-14
 
 26.3 moved the game from GLFW to **SDL3**: windowing, keyboard and mouse. The GUI classes the mod hooks into are the same as in 26.2.
 
@@ -128,7 +128,7 @@ Unchanged, checked with `javap` on the merged jar and by the Mixin audit: every 
 
 ### MC 26.2 — Fabric / NeoForge
 
-Targets: `26.2-fabric`, `26.2-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-14
+Targets: `26.2-fabric`, `26.2-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-14
 
 #### Dependencies
 ```properties
@@ -155,7 +155,7 @@ Unchanged, checked with `javap` on the merged jars and by the Mixin audit: `Pack
 
 ### MC 26.1.2 — Fabric / NeoForge
 
-Targets: `26.1.2-fabric`, `26.1.2-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-13
+Targets: `26.1.2-fabric`, `26.1.2-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-13
 
 26.1.1 was skipped. Each JAR pins exactly its own Minecraft version, so the 26.1 JAR does not load on 26.1.2 and the other way round.
 
@@ -178,7 +178,7 @@ None. `javap` on the merged jars of 26.1 and 26.1.2 shows identical members for 
 
 ### MC 26.1 — Fabric / NeoForge
 
-Targets: `26.1-fabric`, `26.1-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-13
+Targets: `26.1-fabric`, `26.1-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-13
 
 26.1 is the first release with the year-based version number. Minecraft ships **unobfuscated** from here on and needs **Java 25**. The GUI classes the mod hooks into were already in the 1.21.11 shape (input events, `Matrix3x2fStack`, entries that carry their own position, the search box), so the port is renames plus build setup. 26.1.1 was skipped.
 
@@ -217,7 +217,7 @@ Unchanged, checked with `javap` on the merged jar and by the Mixin audit: `Mouse
 
 ### MC 1.21.11 — Fabric / NeoForge
 
-Targets: `1.21.11-fabric`, `1.21.11-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-12
+Targets: `1.21.11-fabric`, `1.21.11-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-12
 
 #### Dependencies
 ```properties
@@ -247,7 +247,7 @@ Unchanged and checked by the Mixin audit: every mixin target and accessor of the
 
 ### MC 1.21.10 — Fabric / NeoForge
 
-Targets: `1.21.10-fabric`, `1.21.10-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-12
+Targets: `1.21.10-fabric`, `1.21.10-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-12
 
 1.21.5–1.21.9 were skipped. The Stonecutter condition `>=1.21.10` marks the first version looked at after 1.21.4; the changes below happened somewhere in between (input events and the GUI matrix in 1.21.6–1.21.9), so adding any of those versions needs a fresh check of each condition.
 
@@ -301,10 +301,11 @@ The Mixin audit proves mixins apply, not that gestures work. A harness, now kept
 - 2026-10-12, mod 0.0.1-alpha: Mixin audit on both dev clients (Fabric clean once the rejected `renderSelection` mixin was fixed; NeoForge: all six target classes force-loaded, no error lines). Scripted gesture smoke test on the Fabric and NeoForge dev clients: all gesture checks passed. `clean buildAndCollect` passes for all eight targets (`verifyJar` included).
 - Manual packaged-JAR gesture test on 1.21.10: not done yet (Fabric ☐ NeoForge ☐).
 - 2026-10-14: scripted test sections K (a group sent back and forth with Enter, six presses, with the keyboard and with the mouse input type) and V (screenshots of the outlines in motion) on the dev client of all 18 targets, K after the fix: all 52 checks pass everywhere. Before the fix K failed on 26.2 and 26.3 (Fabric) and passed on 1.20.1 to 26.1. The full run in a fresh profile is not green on 1.21.10 and newer, with or without that change: R3 fails on Fabric (R2 already leaves the available list empty, so there is nothing for Ctrl+A to select), and NeoForge fails T1, T3, T5 (the available list ends up in a different order than the checks expect) and R3, and stops at R6 with an `ArrayIndexOutOfBoundsException`; cause not investigated.
+- 2026-10-14, mod 1.0.0, `run-smoke.ps1` on Windows (before the 1.0.0 release): `1.21.10-fabric` and `26.3-neoforge` in profiles left over from earlier runs fail the first checks on their start state (the `resourcePacks` line in `options.txt` lists packs from the previous run): 16 PASS / 21 FAIL and 30 PASS / 7 FAIL, neither reaches DONE. With that line removed, `1.21.10-fabric` gives **89 PASS / 1 FAIL**: R3 only, for the reason above (R2 already moved every pack, so Ctrl+A in R3 has nothing to select). `26.3-neoforge` still shows T1, T3, T5, R3 and the `ArrayIndexOutOfBoundsException` of the note above (plus S1 and S2 from the leftover `file/TestA`); it was not re-run with a clean profile. The failing checks look like harness expectations, not gestures, but this is not proven.
 
 ### MC 1.21.4 — Fabric / NeoForge
 
-Targets: `1.21.4-fabric`, `1.21.4-neoforge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-12
+Targets: `1.21.4-fabric`, `1.21.4-neoforge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-12
 
 #### Dependencies
 ```properties
@@ -367,7 +368,7 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 | Drop confirmation | `ConfirmScreen` with `Component.translatable("pack.incompatible.confirm.title")` and `getCompatibility().getConfirmation()` |
 
 #### Loader notes
-- Fabric: Mixins registered in `fabric.mod.json`; no entry point and no Mod Menu integration (Mod Menu lists the mod and its icon from the metadata alone). Built with Loom through `loom-back-compat`; the Mojang → intermediary remap is inlined into the mixin classes, so the JAR has no `refmap`.
+- Fabric: Mixins registered in `fabric.mod.json`; no entry point and no Mod Menu integration (Mod Menu lists the mod, its icon and the Discord link from `custom.modmenu.links` from the metadata alone). Built with Loom through `loom-back-compat`; the Mojang → intermediary remap is inlined into the mixin classes, so the JAR has no `refmap`.
 - NeoForge: Mixins registered via `[[mixins]]` in `neoforge.mods.toml`; `javafml` needs an `@Mod` class, so `DragItNeoForge` is an empty `Dist.CLIENT` class. Runtime names are Mojang names, so the target strings are used as they are. All dependencies are `side = "CLIENT"`.
 - Stonecutter conditions select loaders (`//? fabric`, `//? neoforge`) and, from the 1.21.4 port, Minecraft versions (`//? if >=1.21.4`); the 1.21.1 branch of such a condition is the baseline.
 
@@ -386,7 +387,7 @@ Mappings: official Mojang on both loaders. `fabric.mod.json` and `neoforge.mods.
 
 ### MC 1.20.1 — Fabric / Forge
 
-Targets: `1.20.1-fabric`, `1.20.1-forge` · first mod version: the release after 0.0.1-alpha (see `## [Unreleased]` in the changelog) · date: 2026-10-14
+Targets: `1.20.1-fabric`, `1.20.1-forge` · first mod version: 1.0.0 (see `## [1.0.0]` in the changelog) · date: 2026-10-14
 
 The first target older than the baseline and the first one on **Forge** instead of NeoForge (NeoForge starts at 1.20.2). Java 17. The GUI is still the pre-1.20.2 one: lists are `AbstractSelectionList` with protected bounds fields, there is no `repositionElements`.
 
