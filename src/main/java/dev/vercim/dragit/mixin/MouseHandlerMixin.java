@@ -7,8 +7,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 //? if >=1.21.10 {
-import net.minecraft.client.input.MouseButtonInfo;
-//?}
+/*import net.minecraft.client.input.MouseButtonInfo;
+*///?}
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,16 +32,16 @@ public abstract class MouseHandlerMixin {
 	private double ypos;
 
 	//? if >=1.21.10 {
-	@Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
+	/*@Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
 	private void dragit$onMouseButton(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
 		dragit$handle(window, info.button(), action, info.modifiers(), ci);
 	}
-	//?} else {
-	/*@Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
+	*///?} else {
+	@Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
 	private void dragit$onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
 		dragit$handle(window, button, action, mods, ci);
 	}
-	*///?}
+	//?}
 
 	@Unique
 	private void dragit$handle(long window, int button, int action, int mods, CallbackInfo ci) {

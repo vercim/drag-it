@@ -9,7 +9,7 @@ import dev.vercim.dragit.drag.DragController;
 import dev.vercim.dragit.drag.GuiCompat;
 import dev.vercim.dragit.mixin.accessor.PackEntryAccessor;
 import dev.vercim.dragit.mixin.accessor.TransferableSelectionListAccessor;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -34,13 +34,13 @@ public abstract class PackEntryMixin {
 	/**
 	 * Hooks the whole row render: hides the entry that is currently lifted, shifts sliding entries by their animated offset
 	 * (through the matrix stack, so sub-pixel motion is smooth) and removes vanilla's hover decoration while entries move.
-	 * Up to 1.21.1 vanilla hands the row's position to {@code render}; from 1.21.10 {@code extractContent} reads it from the entry.
+	 * Up to 1.21.1 vanilla hands the row's position to {@code render}; from 1.21.10 {@code renderContent} reads it from the entry.
 	 * From 1.21.1 the row is wrapped with MixinExtras. Forge 1.20.1 does not ship it (and the mod carries no libraries), so there
 	 * the same steps run as plain injections: the hover flag is replaced on entry, the rest runs at the head and at every return.
 	 */
 	//? if >=1.21.10 {
-	@WrapMethod(method = "extractContent")
-	private void dragit$render(GuiGraphicsExtractor context, int mouseX, int mouseY, boolean hovered, float tickDelta, Operation<Void> original) {
+	/*@WrapMethod(method = "renderContent")
+	private void dragit$render(GuiGraphics context, int mouseX, int mouseY, boolean hovered, float tickDelta, Operation<Void> original) {
 		TransferableSelectionList.PackEntry self = (TransferableSelectionList.PackEntry) (Object) this;
 		TransferableSelectionList widget = ((PackEntryAccessor) (Object) this).dragit$getWidget();
 		int state = dragit$begin(context, widget, DragController.rowOf(widget, self), self.getContentX(), self.getContentY(), self.getContentHeight());
@@ -49,10 +49,10 @@ public abstract class PackEntryMixin {
 			dragit$end(context, state);
 		}
 	}
-	//?} else if >=1.21.1 {
-	/*@WrapMethod(method = "extractRenderState")
+	*///?} else if >=1.21.1 {
+	@WrapMethod(method = "render")
 	private void dragit$render(
-		GuiGraphicsExtractor context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
+		GuiGraphics context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
 		float tickDelta, Operation<Void> original
 	) {
 		TransferableSelectionList widget = ((PackEntryAccessor) (Object) this).dragit$getWidget();
@@ -62,18 +62,18 @@ public abstract class PackEntryMixin {
 			dragit$end(context, state);
 		}
 	}
-	*///?} else {
+	//?} else {
 	/*@Unique
 	private int dragit$state = DRAW_PLAIN;
 
-	@ModifyVariable(method = "extractRenderState", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+	@ModifyVariable(method = "render", at = @At("HEAD"), argsOnly = true, ordinal = 0)
 	private boolean dragit$hoverFlag(boolean hovered) {
 		return dragit$hover(((PackEntryAccessor) (Object) this).dragit$getWidget(), hovered);
 	}
 
-	@Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "render", at = @At("HEAD"), cancellable = true)
 	private void dragit$renderBefore(
-		GuiGraphicsExtractor context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
+		GuiGraphics context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
 		float tickDelta, CallbackInfo ci
 	) {
 		TransferableSelectionList widget = ((PackEntryAccessor) (Object) this).dragit$getWidget();
@@ -83,9 +83,9 @@ public abstract class PackEntryMixin {
 		}
 	}
 
-	@Inject(method = "extractRenderState", at = @At("RETURN"))
+	@Inject(method = "render", at = @At("RETURN"))
 	private void dragit$renderAfter(
-		GuiGraphicsExtractor context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
+		GuiGraphics context, int index, int y, int x, int entryWidth, int entryHeight, int mouseX, int mouseY, boolean hovered,
 		float tickDelta, CallbackInfo ci
 	) {
 		dragit$end(context, this.dragit$state);
@@ -111,7 +111,7 @@ public abstract class PackEntryMixin {
 	 * @return a {@code DRAW_*} value: how the row itself is to be drawn
 	 */
 	@Unique
-	private int dragit$begin(GuiGraphicsExtractor context, TransferableSelectionList widget, int index, int x, int y, int entryHeight) {
+	private int dragit$begin(GuiGraphics context, TransferableSelectionList widget, int index, int x, int y, int entryHeight) {
 		if (DragController.isDrawingGhost()
 			|| !(((TransferableSelectionListAccessor) (Object) widget).dragit$getScreen() instanceof ControllerHolder holder)) {
 			return DRAW_PLAIN;
@@ -144,7 +144,7 @@ public abstract class PackEntryMixin {
 
 	/** Undoes what {@link #dragit$begin} set up once the row has been drawn. */
 	@Unique
-	private static void dragit$end(GuiGraphicsExtractor context, int state) {
+	private static void dragit$end(GuiGraphics context, int state) {
 		if (state == DRAW_SHIFTED) {
 			GuiCompat.pop(context);
 		}

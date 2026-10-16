@@ -11,8 +11,8 @@ import java.util.List;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 //? if <1.21.10 {
-/*import net.minecraft.util.Mth;
-*///?}
+import net.minecraft.util.Mth;
+//?}
 
 /**
  * Row geometry of a vanilla {@link TransferableSelectionList}, recomputed from live widget state on every call (GUI scale / resize safe).
@@ -27,25 +27,25 @@ final class ListGeometry {
 	/** The pack rows of the list, in order. */
 	static List<TransferableSelectionList.PackEntry> entries(TransferableSelectionList list) {
 		//? if >=1.21.10 {
-		List<TransferableSelectionList.PackEntry> packs = new ArrayList<>(list.children().size());
+		/*List<TransferableSelectionList.PackEntry> packs = new ArrayList<>(list.children().size());
 		for (TransferableSelectionList.Entry entry : list.children()) {
 			if (entry instanceof TransferableSelectionList.PackEntry pack) {
 				packs.add(pack);
 			}
 		}
 		return packs;
-		//?} else {
-		/*return list.children();
-		*///?}
+		*///?} else {
+		return list.children();
+		//?}
 	}
 
 	/** Vanilla's single selection, or {@code null}. */
 	static TransferableSelectionList.PackEntry selected(TransferableSelectionList list) {
 		//? if >=1.21.10 {
-		return list.getSelected() instanceof TransferableSelectionList.PackEntry pack ? pack : null;
-		//?} else {
-		/*return list.getSelected();
-		*///?}
+		/*return list.getSelected() instanceof TransferableSelectionList.PackEntry pack ? pack : null;
+		*///?} else {
+		return list.getSelected();
+		//?}
 	}
 
 	/** Pitch of the pack rows. */
@@ -56,11 +56,11 @@ final class ListGeometry {
 	/** Height of the title above the first pack row. */
 	static int headerHeight(TransferableSelectionList list) {
 		//? if >=1.21.10 {
-		List<TransferableSelectionList.Entry> all = list.children();
+		/*List<TransferableSelectionList.Entry> all = list.children();
 		return !all.isEmpty() && !(all.get(0) instanceof TransferableSelectionList.PackEntry) ? all.get(0).getHeight() : 0;
-		//?} else {
-		/*return ((AbstractSelectionListAccessor) (Object) list).dragit$getHeaderHeight();
-		*///?}
+		*///?} else {
+		return ((AbstractSelectionListAccessor) (Object) list).dragit$getHeaderHeight();
+		//?}
 	}
 
 	static boolean scrollbarVisible(TransferableSelectionList list) {
@@ -74,19 +74,19 @@ final class ListGeometry {
 	/** Current scroll offset in pixels. */
 	static double scrollAmount(TransferableSelectionList list) {
 		//? if >=1.21.4 {
-		return list.scrollAmount();
-		//?} else {
-		/*return list.getScrollAmount();
-		*///?}
+		/*return list.scrollAmount();
+		*///?} else {
+		return list.getScrollAmount();
+		//?}
 	}
 
 	/** Re-applies the scroll limits after the content height changed. */
 	static void clampScroll(TransferableSelectionList list) {
 		//? if >=1.21.4 {
-		list.refreshScrollAmount();
-		//?} else if >=1.21.1 {
-		/*list.clampScrollAmount();
-		*///?} else {
+		/*list.refreshScrollAmount();
+		*///?} else if >=1.21.1 {
+		list.clampScrollAmount();
+		//?} else {
 		/*list.setScrollAmount(list.getScrollAmount());
 		*///?}
 	}
@@ -168,10 +168,10 @@ final class ListGeometry {
 	/** X of the content of every row (the icon's left edge); the cell of a row starts two pixels before it. */
 	static int contentLeft(TransferableSelectionList list) {
 		//? if >=1.21.10 {
-		return list.getRowLeft() + 2;
-		//?} else {
-		/*return list.getRowLeft();
-		*///?}
+		/*return list.getRowLeft() + 2;
+		*///?} else {
+		return list.getRowLeft();
+		//?}
 	}
 
 	/** Left edge of every card, highlight and zone frame. */
@@ -185,19 +185,19 @@ final class ListGeometry {
 	 */
 	static int cardRight(TransferableSelectionList list) {
 		//? if >=1.21.10 {
-		return list.getRowLeft() + list.getRowWidth() - (scrollbarVisible(list) ? 6 : 0);
-		//?} else {
-		/*return scrollbarVisible(list) ? scrollbarX(list) - 1 : list.getRowLeft() - 2 + list.getRowWidth();
-		*///?}
+		/*return list.getRowLeft() + list.getRowWidth() - (scrollbarVisible(list) ? 6 : 0);
+		*///?} else {
+		return scrollbarVisible(list) ? scrollbarX(list) - 1 : list.getRowLeft() - 2 + list.getRowWidth();
+		//?}
 	}
 
 	/** Right edge (exclusive) of the frame drawn around a list that would receive a pack; the scrollbar stays outside of it. */
 	static int frameRight(TransferableSelectionList list) {
 		//? if >=1.21.10 {
-		return scrollbarVisible(list) ? scrollbarX(list) - 1 : list.getRight();
-		//?} else {
-		/*return cardRight(list);
-		*///?}
+		/*return scrollbarVisible(list) ? scrollbarX(list) - 1 : list.getRight();
+		*///?} else {
+		return cardRight(list);
+		//?}
 	}
 
 	/** Width of the card drawn for a lifted entry / the placeholder. */
@@ -211,29 +211,29 @@ final class ListGeometry {
 	 */
 	static int placeholderInset() {
 		//? if >=1.21.10 {
-		return 0;
-		//?} else {
-		/*return 2;
-		*///?}
+		/*return 0;
+		*///?} else {
+		return 2;
+		//?}
 	}
 
 	/** Index of the pack row under the point, using vanilla's own hit test; {@code -1} if none. */
 	static int hit(TransferableSelectionList list, double x, double y) {
 		//? if >=1.21.10 {
-		List<TransferableSelectionList.PackEntry> packs = entries(list);
+		/*List<TransferableSelectionList.PackEntry> packs = entries(list);
 		for (int i = 0; i < packs.size(); i++) {
 			if (packs.get(i).isMouseOver(x, y)) {
 				return i;
 			}
 		}
 		return -1;
-		//?} else if >=1.21.1 {
-		/*int half = list.getRowWidth() / 2;
+		*///?} else if >=1.21.1 {
+		int half = list.getRowWidth() / 2;
 		int center = list.getX() + list.getWidth() / 2;
 		int m = Mth.floor(y - list.getY()) - headerHeight(list) + (int) scrollAmount(list) - 4;
 		int n = m / itemHeight(list);
 		return x >= center - half && x <= center + half && m >= 0 && n >= 0 && n < list.children().size() ? n : -1;
-		*///?} else {
+		//?} else {
 		/*// 1.20.1: vanilla's getEntryAtPosition, which also refuses the scrollbar strip.
 		int half = list.getRowWidth() / 2;
 		int center = left(list) + width(list) / 2;
@@ -270,13 +270,13 @@ final class ListGeometry {
 	static boolean onToggleArrow(TransferableSelectionList list, TransferableSelectionList.PackEntry entry, double x, double y) {
 		PackSelectionModel.Entry pack = packOf(entry);
 		//? if >=1.21.11 {
-		int dx = (int) x - entry.getContentX();
+		/*int dx = (int) x - entry.getContentX();
 		int dy = (int) y - entry.getContentY();
 		return dy >= 0 && dy < 32 && dx >= 0 && ((pack.canSelect() && dx < 32) || (pack.canUnselect() && dx < 16));
-		//?} else {
-		/*double d = x - list.getRowLeft();
+		*///?} else {
+		double d = x - list.getRowLeft();
 		return d <= 32.0 && (pack.canSelect() || (d < 16.0 && pack.canUnselect()));
-		*///?}
+		//?}
 	}
 
 	static PackSelectionModel.Entry packOf(TransferableSelectionList.PackEntry entry) {
