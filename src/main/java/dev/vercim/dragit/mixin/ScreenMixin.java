@@ -2,12 +2,12 @@ package dev.vercim.dragit.mixin;
 
 import dev.vercim.dragit.drag.DragController;
 import dev.vercim.dragit.drag.GuiCompat;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 //? if >=1.21.10 {
-import net.minecraft.client.input.KeyEvent;
-//?}
+/*import net.minecraft.client.input.KeyEvent;
+*///?}
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,31 +21,31 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(Screen.class)
 public abstract class ScreenMixin {
-	@Inject(method = "extractRenderState", at = @At("HEAD"))
-	private void dragit$beforeRender(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+	@Inject(method = "render", at = @At("HEAD"))
+	private void dragit$beforeRender(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		if ((Object) this instanceof PackSelectionScreen screen) {
 			DragController.of(screen).beginFrame();
 		}
 	}
 
-	@Inject(method = "extractRenderState", at = @At("TAIL"))
-	private void dragit$afterRender(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+	@Inject(method = "render", at = @At("TAIL"))
+	private void dragit$afterRender(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
 		if ((Object) this instanceof PackSelectionScreen screen) {
 			DragController.of(screen).endFrame(context, delta);
 		}
 	}
 
 	//? if >=1.21.10 {
-	@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+	/*@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
 	private void dragit$onKey(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
 		dragit$handleKey(event.key(), event.modifiers(), cir);
 	}
-	//?} else {
-	/*@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+	*///?} else {
+	@Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
 	private void dragit$onKey(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
 		dragit$handleKey(keyCode, modifiers, cir);
 	}
-	*///?}
+	//?}
 
 	@Unique
 	private void dragit$handleKey(int keyCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
