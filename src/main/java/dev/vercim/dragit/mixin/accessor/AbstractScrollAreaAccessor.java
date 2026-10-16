@@ -1,10 +1,10 @@
 package dev.vercim.dragit.mixin.accessor;
 
 //? if >=1.21.4 {
-/*import net.minecraft.client.gui.components.AbstractScrollArea;
-*///?} else {
-import net.minecraft.client.gui.components.AbstractSelectionList;
-//?}
+import net.minecraft.client.gui.components.AbstractScrollArea;
+//?} else {
+/*import net.minecraft.client.gui.components.AbstractSelectionList;
+*///?}
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
@@ -15,16 +15,16 @@ import org.spongepowered.asm.mixin.gen.Invoker;
  * is above zero, which is public), so there the interface stays empty and {@code ListGeometry.scrollbarVisible} asks the list directly.
  */
 //? if >=1.21.4 {
-/*@Mixin(AbstractScrollArea.class)
-*///?} else {
-@Mixin(AbstractSelectionList.class)
-//?}
+@Mixin(AbstractScrollArea.class)
+//?} else {
+/*@Mixin(AbstractSelectionList.class)
+*///?}
 public interface AbstractScrollAreaAccessor {
 	//? if >=26.1 {
-	/*@Invoker("scrollable")
+	@Invoker("scrollable")
 	boolean dragit$isScrollbarVisible();
-	*///?} else if >=1.21.1 {
-	@Invoker("scrollbarVisible")
+	//?} else if >=1.21.1 {
+	/*@Invoker("scrollbarVisible")
 	boolean dragit$isScrollbarVisible();
-	//?}
+	*///?}
 }
