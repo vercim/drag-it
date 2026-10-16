@@ -1,3 +1,8 @@
+## [1.0.1] - 17-10-2026
+
+### Fixes
+- Improved display of the mod version in-game (from 1.0.0+26.3-fabric to 1.0.0)
+
 ## [1.0.0]
 
 ### Added
