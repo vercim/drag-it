@@ -3,7 +3,7 @@ package dev.vercim.dragit.drag;
 import dev.vercim.dragit.DragItSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.packs.TransferableSelectionList;
 
 /** Draws the drop placeholder / blocked marker and the lifted entry. Pure drawing; all state lives in {@link DragController}. */
@@ -11,7 +11,7 @@ final class DragRenderer {
 	private DragRenderer() {
 	}
 
-	static void render(DragController c, GuiGraphics context, float delta) {
+	static void render(DragController c, GuiGraphicsExtractor context, float delta) {
 		for (int i = 0; i < 2; i++) {
 			drawIndicator(c, context, i);
 		}
@@ -20,7 +20,7 @@ final class DragRenderer {
 		}
 	}
 
-	private static void drawIndicator(DragController c, GuiGraphics context, int index) {
+	private static void drawIndicator(DragController c, GuiGraphicsExtractor context, int index) {
 		DragController.Indicator indicator = c.indicators[index];
 		if (indicator.alpha <= 0.005) {
 			return;
@@ -49,7 +49,7 @@ final class DragRenderer {
 		GuiCompat.outline(context, ListGeometry.left(list), ListGeometry.top(list), right - ListGeometry.left(list), ListGeometry.height(list), scale(color, 0.55 * a));
 	}
 
-	private static void drawGhost(DragController c, GuiGraphics context, float delta) {
+	private static void drawGhost(DragController c, GuiGraphicsExtractor context, float delta) {
 		boolean settling = c.phase == DragController.Phase.SETTLING;
 		if (settling) {
 			// Gliding cards may head for rows that are scrolled out of view; keep them inside the lists' area.
@@ -75,7 +75,7 @@ final class DragRenderer {
 
 	/** One lifted card; {@code count} above 1 stacks cards under it and puts the number of dragged packs on it. */
 	private static void drawCard(
-		DragController c, GuiGraphics context, float delta, TransferableSelectionList list, String name,
+		DragController c, GuiGraphicsExtractor context, float delta, TransferableSelectionList list, String name,
 		double gx, double gy, double blocked, int count
 	) {
 		int row = ListGeometry.indexOf(list, name);
@@ -148,7 +148,7 @@ final class DragRenderer {
 	 * {@code border} and {@code fill} are the outline's ARGB colours at full opacity.
 	 */
 	static void drawSelection(
-		GuiGraphics context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom, int border, int fill
+		GuiGraphicsExtractor context, SelectionBands bands, int list, int index, int left, int top, int right, int bottom, int border, int fill
 	) {
 		int height = bottom - top;
 		for (SelectionBands.Band band : bands.bands(list)) {

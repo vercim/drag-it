@@ -19,10 +19,10 @@ The matrix is declared once in [`settings.gradle.kts`](../settings.gradle.kts). 
 
 ### Default target
 
-The default Stonecutter target is `1.21.1-fabric`, the baseline the source tree is written against. It lives in two places that must stay equal: `vcsVersion` in [`settings.gradle.kts`](../settings.gradle.kts) and the committed `.sc_active_version`.
+The default Stonecutter target is always the **latest Minecraft version**, Fabric build: currently `26.3-fabric`. It lives in two places that must stay equal: `vcsVersion` in [`settings.gradle.kts`](../settings.gradle.kts) and the committed `.sc_active_version`. The committed `src/` is the source as that target sees it, so it shows the 26.x names (`GuiGraphicsExtractor`, `extract…`).
 
 - Switching to another target for local work is fine, but run `Reset active project` before committing: the diff must not contain comment flips or a changed `.sc_active_version`.
-- Adding a new Minecraft version does not move the default.
+- When a new Minecraft version is added, move `vcsVersion` and `.sc_active_version` to its Fabric target in the same change: set `vcsVersion`, then run `Set active project to <target>`.
 
 ## Requirements
 
@@ -168,7 +168,7 @@ Rules:
 
 - A loader condition is `//? fabric {`, `//? neoforge {` or `//? forge {`; the block closes with `//?}` when its code is active and with `*///?}` when it is stored commented out.
 - A Minecraft-version difference is written next to the affected code: `//? if >=1.21.4 { … //?} else { /* … *///?}` (`ListGeometry.scrollAmount` is a small real example).
-- Plain renames between versions are not conditions: `stonecutter.gradle.kts` swaps those tokens for 26.1 and newer (`replacements.string`), and the source tree keeps the older names. A changed signature or behavior still gets a local condition.
+- Plain renames between versions are not conditions: `stonecutter.gradle.kts` swaps those tokens for 26.1 and newer (`replacements.string`), and the source tree shows the older names whenever an older target is active. A changed signature or behavior still gets a local condition.
 - If a whole class is loader-specific, keep its `package` declaration outside the block so the inactive target generates a valid, otherwise empty source file.
 - Keep conditions as narrow as practical. Never copy files per version.
 
