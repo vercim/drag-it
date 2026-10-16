@@ -52,7 +52,7 @@ repositories {
 
 tasks.processResources {
     val metadata = mapOf(
-        "version" to project.version,
+        "version" to modVersion,
         "minecraft_version" to minecraftVersion,
         "minecraft_version_range" to project.property("minecraft_version_range"),
         "neoforge_version" to project.property("neoforge_version"),

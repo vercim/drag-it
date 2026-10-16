@@ -64,7 +64,7 @@ dependencies {
 
 tasks.processResources {
     val metadata = mapOf(
-        "version" to project.version,
+        "version" to modVersion,
         "minecraft_version_range" to project.property("minecraft_version_range"),
         "forge_version" to project.property("forge_version").toString().substringAfter('-'),
         "forge_loader_version_range" to project.property("forge_loader_version_range"),

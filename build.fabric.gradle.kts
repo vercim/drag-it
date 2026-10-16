@@ -62,7 +62,7 @@ dependencies {
 
 tasks.processResources {
     val metadata = mapOf(
-        "version" to project.version,
+        "version" to modVersion,
         "minecraft_version" to minecraftVersion,
         "fabric_loader_min_version" to project.property("fabric_loader_min_version"),
         "java_version" to javaVersion
