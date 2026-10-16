@@ -20,7 +20,7 @@ Drag It! — client-side Minecraft mod, smooth drag & drop for the resource pack
 - Every port is merged into `main` (no open feature branch holds target work). All 18 targets compile and pass `verifyJar`, and the Mixin audit and the scripted gesture test ran on the dev clients of each; the manual packaged-JAR gesture test has not been run on any target, and for Forge 1.20.1 the SRG path (the refmap) has only been inspected, never run (see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md)). The full scripted run is not fully green on 1.21.10 and newer, see the 1.21.10 entry there. 1.21.5-1.21.9 and 26.1.1 were skipped.
 
 - Mod id is `dragit` on every loader. NeoForge only accepts `[a-z][a-z0-9_]{1,63}`, so a hyphenated id such as `drag-it` is invalid there. The repository, README links, and platform slugs keep `drag-it`.
-- No Fabric API and no other libraries. MixinExtras comes with Fabric and NeoForge, but **not with Forge 1.20.1** (Mixin 0.8.5 only): up to 1.21.1 exclusive the hooks are plain Mixin injectors, `@WrapMethod` is for 1.21.1 and newer. The Mixin API is on every classpath.
+- No Fabric API and no other libraries in the mod. Only the Fabric **dev client** additionally loads Fabric API and Mod Menu (`modLocalRuntime`, for a visual check of the mod list; not on the compile classpath, not in the JAR; versions per target in `gradle.properties`, see [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md#fabric-dev-client-mod-menu)). MixinExtras comes with Fabric and NeoForge, but **not with Forge 1.20.1** (Mixin 0.8.5 only): up to 1.21.1 exclusive the hooks are plain Mixin injectors, `@WrapMethod` is for 1.21.1 and newer. The Mixin API is on every classpath.
 - Metadata pins Minecraft to exactly the target's version (one release, e.g. `[1.21.4,1.21.5)` on NeoForge and Forge); a JAR never claims a version it was not built and tested against.
 
 ## Rules that must not be forgotten
@@ -128,7 +128,7 @@ The mod adds no user-visible text and ships no lang files; a refused drop is sho
 
 ## Porting to a new Minecraft version
 
-Add a target in `settings.gradle.kts` and fix API differences with narrow Stonecutter conditions — never a new long-lived branch. The checklist, the baseline API table, and the notes from every earlier port are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md); fill its entry for the new version as you go. Start with the `PackEntry.render` wrap and the accessors.
+Add a target in `settings.gradle.kts` (a Fabric one also needs its `fabric_api_version_*` and `modmenu_version_*` entries in `gradle.properties`) and fix API differences with narrow Stonecutter conditions — never a new long-lived branch. The checklist, the baseline API table, and the notes from every earlier port are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md); fill its entry for the new version as you go. Start with the `PackEntry.render` wrap and the accessors.
 
 ## Common issues
 

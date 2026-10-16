@@ -41,6 +41,10 @@ loom {
 
 repositories {
     mavenCentral()
+    maven("https://maven.terraformersmc.com/releases/") {
+        name = "TerraformersMC"
+        content { includeGroup("com.terraformersmc") }
+    }
 }
 
 dependencies {
@@ -49,6 +53,11 @@ dependencies {
     loomx.applyMojangMappings()
     // No Fabric API: the mod only needs Fabric Loader and Mixin.
     modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader_version")}")
+    // Development-only: shows the mod in the dev client's mod list; never reaches the compile classpath or the JAR.
+    // Mod Menu needs Fabric API modules, and Loom drops the ones nested in its JAR, so Fabric API is added next to it.
+    val versionKey = minecraftVersion.replace('.', '_')
+    modLocalRuntime("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api_version_$versionKey")}")
+    modLocalRuntime("com.terraformersmc:modmenu:${project.property("modmenu_version_$versionKey")}")
 }
 
 tasks.processResources {
