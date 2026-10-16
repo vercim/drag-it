@@ -62,6 +62,25 @@ Targets: `X.Y.Z-fabric`, `X.Y.Z-neoforge` · first mod version: A.B.C · date: Y
 - YYYY-MM-DD, mod A.B.C: Fabric ☐ NeoForge ☐ (checklist in WORKFLOW.md → Packaged-JAR validation)
 ```
 
+## Fabric dev client: Mod Menu
+
+Fabric dev clients additionally load Fabric API and Mod Menu through `modLocalRuntime` (`build.fabric.gradle.kts`), so the mod list can be checked without installing anything; neither is on the compile classpath or in the JAR. Versions are in `gradle.properties` as `fabric_api_version_<minecraft version with _>` and `modmenu_version_<minecraft version with _>`; a new Fabric target needs both entries, or the build fails with a missing property.
+
+| Minecraft | Mod Menu | Fabric API |
+|---|---|---|
+| 1.20.1 | 7.2.2 | 0.92.12+1.20.1 |
+| 1.21.1 | 11.0.5 | 0.116.17+1.21.1 |
+| 1.21.4 | 13.0.4 | 0.119.4+1.21.4 |
+| 1.21.10 | 16.0.1 | 0.138.4+1.21.10 |
+| 1.21.11 | 17.0.1 | 0.141.6+1.21.11 |
+| 26.1 | 18.0.2 | 0.145.1+26.1 |
+| 26.1.2 | 18.0.2 | 0.155.3+26.1.2 |
+| 26.2 | 20.0.3 | 0.161.0+26.2 |
+| 26.3 | 21.0.0 | 0.163.0+26.3 |
+
+Fabric API is needed because Mod Menu requires some of its modules and Loom removes the ones nested in the Mod Menu JAR; the POMs of Mod Menu do not declare them either, so Gradle would not pull them in (the client then stops with "Incompatible mods found"). NeoForge and Forge have a built-in mod list and need nothing.
+
+Consequences: the dev client and the scripted gesture test on Fabric run with Fabric API present, unlike the packaged JAR the mod is meant to work without (see Packaged-JAR validation in [WORKFLOW.md](WORKFLOW.md)); and the title screen gets Mod Menu's button. Only 26.3 and 1.21.10 dev clients were started with the new setup (both list `dragit` and `modmenu` and reach the title screen); the other Fabric targets resolve their dependencies, nothing more.
 
 ## Mixin audit
 
