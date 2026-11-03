@@ -8,3 +8,4 @@ out/
 run/
 .run/
 .claude/
+.DS_Store
