@@ -1,4 +1,4 @@
-## [Unreleased]
+## [1.1.0] - 2026-11-04
 
 ### Added
 - On the pack selection screens, a frame appears along the inner edge of the window while files are dragged over the game window (Minecraft 26.3 and newer only — older versions get no hover events from GLFW, so nothing can be drawn there until the drop lands).
