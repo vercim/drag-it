@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8.5",
   "package": "dev.vercim.dragit.mixin",
+  "plugin": "dev.vercim.dragit.mixin.DragItMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "client": [
     "MouseHandlerMixin",
@@ -9,6 +10,8 @@
     "PackSelectionScreenMixin",
     "PackEntryMixin",
     "ScreenMixin",
+    "SDLEventHandlerMixin",
+    "WindowMixin",
     "accessor.AbstractScrollAreaAccessor",
     "accessor.AbstractSelectionListAccessor",
     "accessor.TransferableSelectionListAccessor",

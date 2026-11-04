@@ -1,3 +1,8 @@
+## [1.1.0] - 2026-11-04
+
+### Added
+- When you drag a resource pack into the game window, a visual outline of the game window appears (works only on version 26.3 or later)
+
 ## [1.0.1] - 17-10-2026
 
 ### Fixes
