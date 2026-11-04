@@ -122,6 +122,9 @@ public final class DragController {
 	private double dt;
 	private boolean faulted;
 
+	/** 0..1: fade of the "files dragged over the window" frame (fed by SDL on 26.3+; stays 0 on GLFW versions). */
+	double fileHoverAlpha;
+
 	public DragController(PackSelectionScreen screen) {
 		this.screen = screen;
 	}
@@ -754,6 +757,7 @@ public final class DragController {
 			readPointer();
 			pruneMulti();
 			updateHighlightAlpha();
+			updateFileHover();
 			if ((phase == Phase.PENDING || phase == Phase.DRAGGING) && !GuiCompat.leftButtonHeld()) {
 				onRelease(pointerX, pointerY, GuiCompat.MOUSE_LEFT); // release event got lost (focus change etc.)
 			}
@@ -777,8 +781,22 @@ public final class DragController {
 		}
 		try {
 			DragRenderer.render(this, context, delta);
+			DragRenderer.drawFileDropFrame(this, context);
 		} catch (RuntimeException e) {
 			fail(e);
+		}
+	}
+
+	/**
+	 * The file-drag hover (SDL, 26.3+): fades the window frame in while files are held over the window. GLFW versions
+	 * get no such events, so {@link FileDropHover} stays inactive and this is a no-op.
+	 */
+	private void updateFileHover() {
+		boolean active = FileDropHover.active();
+		double blend = 1.0 - Math.exp(-dt * DragItSettings.INDICATOR_RATE);
+		fileHoverAlpha += ((active ? 1.0 : 0.0) - fileHoverAlpha) * blend;
+		if (!active && fileHoverAlpha < 0.01) {
+			fileHoverAlpha = 0;
 		}
 	}
 
@@ -1191,10 +1209,30 @@ public final class DragController {
 		GuiCompat.setScreen(client, new ConfirmScreen(confirmed -> {
 			GuiCompat.setScreen(client, screen);
 			if (confirmed) {
-				crossList(List.of(pack), List.of(profile), SELECTED, gap);
+				enableAt(List.of(pack), List.of(profile), gap);
 				ListGeometry.clampScroll(list(AVAILABLE));
 				ListGeometry.clampScroll(list(SELECTED));
 			}
 		}, Component.translatable("pack.incompatible.confirm.title"), message));
+	}
+
+	/**
+	 * Enables the packs and slides them as one block to the gap (an index into the model's list, as in
+	 * {@link #crossList}; -1 keeps the position vanilla gave them).
+	 */
+	private void enableAt(List<PackSelectionModel.Entry> packs, List<Pack> moved, int gap) {
+		for (PackSelectionModel.Entry pack : packs) {
+			pack.select();
+		}
+		if (gap >= 0) {
+			List<Pack> selected = profiles(SELECTED);
+			List<Pack> before = new ArrayList<>(selected);
+			selected.removeAll(moved);
+			selected.addAll(Math.min(gap, selected.size()), moved);
+			if (!selected.equals(before)) {
+				refreshLists();
+			}
+		}
+		organizer().dragit$refreshEnabledProfiles();
 	}
 }
