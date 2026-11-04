@@ -235,6 +235,13 @@ public final class DragItSmoke {
 		HELD = true;
 		boolean eaten = onRender(() -> ctl().onMouseButton(p[0], p[1], GuiCompat.MOUSE_LEFT, true, mods));
 		log("press consumed=" + eaten);
+		if (!eaten) {
+			onRender(() -> {
+				var acc = (PackSelectionScreenAccessor) (Object) screen();
+				log("press debug: availableList=" + (acc.dragit$getAvailableList() != null) + " selectedList=" + (acc.dragit$getSelectedList() != null) + " organizer=" + (acc.dragit$getOrganizer() != null)
+					+ " hit=" + ListGeometry.hit(ctl().list(0), p[0], p[1]) + " mouseOver=" + ctl().list(0).isMouseOver(p[0], p[1]));
+			});
+		}
 	}
 
 	static void release(double[] p) {
@@ -256,6 +263,10 @@ public final class DragItSmoke {
 		sleep(150);
 		moveTo(from, to, 12);
 		sleep(900);
+		boolean windowGone = onRender(() -> Minecraft.getInstance().getWindow().getScreenWidth() == 0);
+		if (windowGone) {
+			log(label + ": the game window reports size 0 (minimized) — the checks below are invalid");
+		}
 		log(label + " mid " + state());
 		if (shotMid) {
 			shot(label + "-mid");
@@ -600,53 +611,53 @@ public final class DragItSmoke {
 	}
 
 	/**
-	 * D: files dropped on the window. Over the available list vanilla only copies them into the pack folder; over the
-	 * selected list the mod also enables them at the drop spot.
+	 * D: files dropped on the window — always vanilla behaviour (the files are copied into the pack folder and join the
+	 * available list, no matter which list is under the cursor), plus the "files held over the window" frame (26.3+).
 	 */
 	static void fileDrops() {
 		Path staging = null;
 		try {
-			// both lists back to the top, so the drop gaps are where the checks expect them
+			// both lists back to the top, so the drop positions are where the checks expect them
 			onRender(() -> {
 				ctl().list(0).setScrollAmount(0);
 				ctl().list(1).setScrollAmount(0);
 			});
 			sleep(300);
-			staging = stagePacks("TestDropA", "TestDropB", "TestDropC", "TestDropD");
+			staging = stagePacks("TestDropA", "TestDropB");
 			List<String> selBefore = modelSel();
 			// D1: over the available list: the pack joins the available list, the enabled list is untouched
 			dropFiles("D1", gap(0, 0), List.of(staging.resolve("TestDropA")));
 			expect("D1", "dropped pack joined the available list", modelAvail().contains("file/TestDropA"), true);
 			expect("D1", "nothing was enabled", modelSel(), selBefore);
-			// D2: over the top of the selected list: the pack is enabled at that spot
+			// D2: over the selected list: exactly the same (the drop spot does not matter)
 			dropFiles("D2", gap(1, 0), List.of(staging.resolve("TestDropB")));
-			expect("D2", "dropped pack was enabled", modelSel().contains("file/TestDropB"), true);
-			expect("D2", "dropped pack took the drop spot", modelSel().get(0), "file/TestDropB");
-			// D3: two files at once, at gap 1: both enabled, in drop order, at the spot
-			List<String> expected = new ArrayList<>(modelSel());
-			expected.addAll(1, List.of("file/TestDropC", "file/TestDropD"));
-			dropFiles("D3", gap(1, 1), List.of(staging.resolve("TestDropC"), staging.resolve("TestDropD")));
-			expect("D3", "both packs enabled in drop order at the gap", modelSel(), expected);
-			// D4: the file-drag hover (driven by SDL on 26.3+): the window frame fades in and the hovered list is tracked
-			double[] scale = onRender(() -> {
-				com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
-				return new double[]{(double) w.getScreenWidth() / w.getGuiScaledWidth(), (double) w.getScreenHeight() / w.getGuiScaledHeight()};
-			});
-			double[] overSelected = gap(1, 0);
-			onRender(() -> {
-				FileDropHover.begin();
-				FileDropHover.move(overSelected[0] * scale[0], overSelected[1] * scale[1]); // SDL reports window pixels
-			});
+			expect("D2", "dropped pack joined the available list", modelAvail().contains("file/TestDropB"), true);
+			expect("D2", "still nothing was enabled", modelSel(), selBefore);
+			// D3: the window frame while files hover. On 26.3+ the SDL events are pushed into the real event queue, so
+			// the whole chain runs (SDLEventHandler / Window mixins -> FileDropHover -> the frame); before 26.3 the
+			// hover state is driven directly, which exercises the rendering only (GLFW has no such events anyway).
+			boolean sdl = hasSdl();
+			log("D3 sdl=" + sdl);
+			if (sdl) {
+				onRender(() -> pushSdlDropEvent(SDL_DROP_BEGIN, 0, 0));
+			} else {
+				onRender(FileDropHover::begin);
+			}
 			sleep(600);
-			expect("D4", "hover frame fades in over the selected list", onRender(() -> ctl().fileHoverAlpha > 0.2 && ctl().fileHoverList == 1), true);
-			shot("D4-file-hover");
-			double[] overAvailable = gap(0, 0);
-			onRender(() -> FileDropHover.move(overAvailable[0] * scale[0], overAvailable[1] * scale[1]));
-			sleep(400);
-			expect("D4", "hover follows the files to the available list", onRender(() -> ctl().fileHoverList), 0);
-			onRender(FileDropHover::end);
+			expect("D3", "hover state active", FileDropHover.active(), true);
+			expect("D3", "window frame fades in", onRender(() -> ctl().fileHoverAlpha > 0.2), true);
+			shot("D3-file-hover");
+			if (sdl) {
+				onRender(() -> pushSdlDropEvent(SDL_DROP_POSITION, 123, 45));
+				sleep(300);
+				expect("D3", "cursor position tracked", onRender(() -> FileDropHover.x() == 123 && FileDropHover.y() == 45), true);
+				onRender(() -> pushSdlDropEvent(SDL_DROP_COMPLETE, 0, 0));
+			} else {
+				onRender(FileDropHover::end);
+			}
 			sleep(800);
-			expect("D4", "hover frame faded out after the drag ended", onRender(() -> ctl().fileHoverAlpha), 0.0);
+			expect("D3", "hover state cleared", FileDropHover.active(), false);
+			expect("D3", "window frame faded out", onRender(() -> ctl().fileHoverAlpha), 0.0);
 		} catch (Exception e) {
 			log("FAIL D: " + e);
 		} finally {
@@ -656,7 +667,7 @@ public final class DragItSmoke {
 				onRender(() -> {
 					try {
 						Path dir = mc.getResourcePackDirectory();
-						for (String n : new String[]{"TestDropA", "TestDropB", "TestDropC", "TestDropD"}) {
+						for (String n : new String[]{"TestDropA", "TestDropB"}) {
 							deleteTree(dir.resolve(n));
 						}
 						mc.getResourcePackRepository().reload();
@@ -670,6 +681,48 @@ public final class DragItSmoke {
 			} catch (Exception e) {
 				log("D cleanup failed: " + e);
 			}
+		}
+	}
+
+	// SDL event types (26.3+; the values are SDL3 ABI constants)
+	static final int SDL_DROP_BEGIN = 0x1002;
+	static final int SDL_DROP_COMPLETE = 0x1003;
+	static final int SDL_DROP_POSITION = 0x1004;
+
+	/** True on 26.3+, where the game runs on SDL and org.lwjgl.sdl is on the classpath. */
+	static boolean hasSdl() {
+		try {
+			Class.forName("org.lwjgl.sdl.SDLEvents");
+			return true;
+		} catch (Throwable e) {
+			return false;
+		}
+	}
+
+	/** Pushes a synthetic SDL drop event into the game's own event queue; the next pump dispatches it like a real one. */
+	static void pushSdlDropEvent(int type, float x, float y) {
+		try {
+			Class<?> eventClass = Class.forName("org.lwjgl.sdl.SDL_Event");
+			Object event = eventClass.getMethod("calloc").invoke(null);
+			try {
+				eventClass.getMethod("type", int.class).invoke(event, type);
+				if (type == SDL_DROP_POSITION) {
+					Object drop = eventClass.getMethod("drop").invoke(event);
+					Class<?> dropClass = Class.forName("org.lwjgl.sdl.SDL_DropEvent");
+					dropClass.getMethod("x", float.class).invoke(drop, x);
+					dropClass.getMethod("y", float.class).invoke(drop, y);
+				}
+				boolean queued = (boolean) Class.forName("org.lwjgl.sdl.SDLEvents").getMethod("SDL_PushEvent", eventClass).invoke(null, event);
+				if (!queued) {
+					throw new IllegalStateException("SDL_PushEvent refused the event");
+				}
+			} finally {
+				eventClass.getMethod("free").invoke(event);
+			}
+		} catch (RuntimeException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
 		}
 	}
 

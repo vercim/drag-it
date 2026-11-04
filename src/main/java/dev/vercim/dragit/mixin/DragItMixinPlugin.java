@@ -53,10 +53,12 @@ public final class DragItMixinPlugin implements IMixinConfigPlugin {
 	}
 
 	private static boolean classExists(String name) {
+		// Read the bytecode instead of Class.forName: loading a game class during mixin config preparation marks it as
+		// "loaded too early" and then NO mixin can target it (MixinTargetAlreadyLoadedException) — ours and other mods'.
 		try {
-			Class.forName(name, false, DragItMixinPlugin.class.getClassLoader());
+			org.spongepowered.asm.service.MixinService.getService().getBytecodeProvider().getClassNode(name);
 			return true;
-		} catch (Throwable ignored) { // NoClassDefFoundError included: a superclass of the probe may be missing too
+		} catch (Throwable ignored) { // ClassNotFoundException / IOException: the class is not there
 			return false;
 		}
 	}
