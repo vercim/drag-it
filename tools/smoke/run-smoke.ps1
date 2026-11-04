@@ -127,11 +127,12 @@ try {
             Remove-Item (Join-Path $run 'smoke.only') -Force -ErrorAction SilentlyContinue
             if ($Only) { Set-Content -Path (Join-Path $run 'smoke.only') -Value $Only }
             # a fresh profile opens the accessibility onboarding instead of the title screen; keep the rest of options.txt.
-            # The client also runs muted: a test run clicks and drags for minutes.
+            # The client also runs muted: a test run clicks and drags for minutes. guiScale is pinned: "Auto" depends on
+            # the window size, which manual testing of the dev clients keeps changing, and the geometry checks then fail.
             $opts = Join-Path $run 'options.txt'
             $lines = @()
-            if (Test-Path $opts) { $lines = @(Get-Content $opts | Where-Object { $_ -notmatch '^(onboardAccessibility|soundCategory_master):' }) }
-            Set-Content -Path $opts -Value ($lines + 'onboardAccessibility:false' + 'soundCategory_master:0.0')
+            if (Test-Path $opts) { $lines = @(Get-Content $opts | Where-Object { $_ -notmatch '^(onboardAccessibility|soundCategory_master|guiScale):' }) }
+            Set-Content -Path $opts -Value ($lines + 'onboardAccessibility:false' + 'soundCategory_master:0.0' + 'guiScale:4')
 
             $gr = Invoke-Gradle ":${t}:runClient --console=plain" (Join-Path $outDir "$t.gradle") ($TimeoutMinutes * 60 * 1000)
             if ($gr.TimedOut) {
