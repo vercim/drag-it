@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Added
+- Drop pack files onto the lists: dropping them over the selected list enables them right where they land (dropping over the available list keeps vanilla behaviour — the files are only added). Works on the data pack screen too.
+- On the pack selection screens: while files are dragged over the game window, a frame appears along the inner edge of the window and around the list under the cursor (Minecraft 26.3 and newer only — older versions get no hover events from GLFW, so nothing can be drawn there until the drop lands).
+
 ## [1.0.1] - 17-10-2026
 
 ### Fixes

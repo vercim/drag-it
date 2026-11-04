@@ -5,6 +5,7 @@ import dev.vercim.dragit.DragIt;
 import dev.vercim.dragit.DragItSettings;
 import dev.vercim.dragit.mixin.accessor.PackSelectionModelAccessor;
 import dev.vercim.dragit.mixin.accessor.PackSelectionScreenAccessor;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -121,6 +122,25 @@ public final class DragController {
 	private long lastNanos;
 	private double dt;
 	private boolean faulted;
+
+	/**
+	 * A drop of pack files over the selected list, waiting for the reload that follows vanilla's copy of the files into
+	 * the pack folder: the cursor position (GUI px) at the moment of the drop, and the name of every dropped file.
+	 */
+	private record PendingFileDrop(double x, double y, List<String> fileNames) {
+	}
+
+	/** A dropped pack whose enabling still needs vanilla's incompatibility confirmation; shown on the next frame. */
+	private record PendingEnable(PackSelectionModel.Entry pack, Pack profile, int gap) {
+	}
+
+	private PendingFileDrop pendingFileDrop;
+	/** Vanilla reopens this screen right after the reload a drop caused, so a dialog opened inside the reload would be closed at once. */
+	private PendingEnable deferredEnable;
+	/** 0..1: fade of the "files dragged over the window" frame (fed by SDL on 26.3+; stays 0 on GLFW versions). */
+	double fileHoverAlpha;
+	/** List the dragged files hover over ({@link #AVAILABLE} / {@link #SELECTED}) or -1; drives the zone frame. */
+	int fileHoverList = -1;
 
 	public DragController(PackSelectionScreen screen) {
 		this.screen = screen;
@@ -334,6 +354,8 @@ public final class DragController {
 		drop = DropTarget.Result.NONE;
 		lift = 0;
 		swallowRelease = gesture && buttonDown;
+		pendingFileDrop = null;
+		deferredEnable = null;
 	}
 
 	private void fail(RuntimeException e) {
@@ -752,8 +774,14 @@ public final class DragController {
 		}
 		try {
 			readPointer();
+			if (deferredEnable != null) {
+				PendingEnable pending = deferredEnable;
+				deferredEnable = null;
+				confirmIncompatible(pending.pack(), pending.profile(), pending.gap());
+			}
 			pruneMulti();
 			updateHighlightAlpha();
+			updateFileHover();
 			if ((phase == Phase.PENDING || phase == Phase.DRAGGING) && !GuiCompat.leftButtonHeld()) {
 				onRelease(pointerX, pointerY, GuiCompat.MOUSE_LEFT); // release event got lost (focus change etc.)
 			}
@@ -777,8 +805,36 @@ public final class DragController {
 		}
 		try {
 			DragRenderer.render(this, context, delta);
+			DragRenderer.drawFileDropFrame(this, context);
 		} catch (RuntimeException e) {
 			fail(e);
+		}
+	}
+
+	/**
+	 * The file-drag hover (SDL, 26.3+): fades the window frame in while files are held over the window and tracks the
+	 * list under them. GLFW versions get no such events, so {@link FileDropHover} stays inactive and this is a no-op.
+	 */
+	private void updateFileHover() {
+		boolean active = FileDropHover.active();
+		fileHoverList = -1;
+		if (active) {
+			Window window = Minecraft.getInstance().getWindow();
+			double x = FileDropHover.x() * window.getGuiScaledWidth() / window.getScreenWidth();
+			double y = FileDropHover.y() * window.getGuiScaledHeight() / window.getScreenHeight();
+			int pad = DragItSettings.COLUMN_PADDING;
+			for (int i = 0; i < 2; i++) { // the lists never overlap; on the padding between them "selected" wins
+				TransferableSelectionList list = list(i);
+				if (x >= ListGeometry.left(list) - pad && x <= ListGeometry.right(list) + pad
+					&& y >= ListGeometry.top(list) && y <= ListGeometry.bottom(list)) {
+					fileHoverList = i;
+				}
+			}
+		}
+		double blend = 1.0 - Math.exp(-dt * DragItSettings.INDICATOR_RATE);
+		fileHoverAlpha += ((active ? 1.0 : 0.0) - fileHoverAlpha) * blend;
+		if (!active && fileHoverAlpha < 0.01) {
+			fileHoverAlpha = 0;
 		}
 	}
 
@@ -1191,10 +1247,131 @@ public final class DragController {
 		GuiCompat.setScreen(client, new ConfirmScreen(confirmed -> {
 			GuiCompat.setScreen(client, screen);
 			if (confirmed) {
-				crossList(List.of(pack), List.of(profile), SELECTED, gap);
+				enableAt(List.of(pack), List.of(profile), gap);
 				ListGeometry.clampScroll(list(AVAILABLE));
 				ListGeometry.clampScroll(list(SELECTED));
 			}
 		}, Component.translatable("pack.incompatible.confirm.title"), message));
+	}
+
+	// ---------------------------------------------------------------- file drops onto the window
+
+	/**
+	 * Vanilla's own "files dropped on the window" hook, before vanilla sees it (vanilla then asks for confirmation,
+	 * copies the files into the pack folder and reloads). A drop over the selected list is remembered, so that
+	 * {@link #onPacksReloaded()} can also enable the new packs where they were dropped; anywhere else keeps vanilla's
+	 * behaviour (the packs join the available list).
+	 */
+	public void onFilesDrop(List<Path> paths) {
+		if (!ready() || paths.isEmpty()) {
+			return;
+		}
+		readPointer();
+		TransferableSelectionList selected = list(SELECTED);
+		int pad = DragItSettings.COLUMN_PADDING;
+		if (pointerX < ListGeometry.left(selected) - pad || pointerX > ListGeometry.right(selected) + pad
+			|| pointerY < ListGeometry.top(selected) || pointerY > ListGeometry.bottom(selected)) {
+			return;
+		}
+		List<String> names = new ArrayList<>(paths.size());
+		for (Path path : paths) {
+			Path file = path.getFileName();
+			if (file != null) {
+				names.add(file.toString());
+			}
+		}
+		pendingFileDrop = new PendingFileDrop(pointerX, pointerY, names);
+	}
+
+	/**
+	 * After every reload of this screen's pack lists (the directory watcher and the file drop both end in one). Applies
+	 * a pending file drop, now that the dropped packs exist. A drop the user did not confirm never copies anything, so
+	 * no new pack matches its file names and the pending drop is simply consumed.
+	 */
+	public void onPacksReloaded() {
+		PendingFileDrop pending = pendingFileDrop;
+		pendingFileDrop = null;
+		if (pending == null || !ready()) {
+			return;
+		}
+		try {
+			applyFileDrop(pending);
+		} catch (RuntimeException e) {
+			fail(e);
+		}
+	}
+
+	private void applyFileDrop(PendingFileDrop pending) {
+		// The packs the drop brought, in drop order. The model is queried directly: a search can hide them in the list.
+		List<PackSelectionModel.Entry> packs = new ArrayList<>();
+		List<Pack> profiles = new ArrayList<>();
+		for (String name : pending.fileNames()) {
+			PackSelectionModel.Entry entry = unselectedEntry("file/" + name);
+			Pack profile = entry == null ? null : findProfile(entry.getId());
+			if (entry != null && profile != null && !profiles.contains(profile)) {
+				packs.add(entry);
+				profiles.add(profile);
+			}
+		}
+		if (packs.isEmpty()) {
+			return;
+		}
+		// The same rules as for a dragged group: a group leaves the incompatible packs behind, a lone one gets vanilla's
+		// confirmation dialog — deferred to the next frame, because vanilla reopens this screen right after this reload.
+		List<PackSelectionModel.Entry> movable = new ArrayList<>();
+		List<Pack> movableProfiles = new ArrayList<>();
+		for (int i = 0; i < packs.size(); i++) {
+			if (packs.get(i).getCompatibility().isCompatible()) {
+				movable.add(packs.get(i));
+				movableProfiles.add(profiles.get(i));
+			}
+		}
+		if (movable.isEmpty()) {
+			if (packs.size() == 1) {
+				deferredEnable = new PendingEnable(packs.get(0), profiles.get(0), fileDropGap(profiles, pending));
+			}
+			return;
+		}
+		enableAt(movable, movableProfiles, fileDropGap(movableProfiles, pending));
+	}
+
+	/** The model's unselected entry with this id, or {@code null}. The widget list is not asked: a search can hide the pack. */
+	private PackSelectionModel.Entry unselectedEntry(String id) {
+		PackSelectionModel model = ((PackSelectionScreenAccessor) (Object) screen).dragit$getOrganizer();
+		return model.getUnselected().filter(entry -> entry.getId().equals(id)).findFirst().orElse(null);
+	}
+
+	/**
+	 * Where packs dropped at the remembered position land in the model's selected list, with the same gap and
+	 * pinned-zone rules as a pack dragged there (a gap outside a pinned zone is clamped to its boundary); -1 for "keep
+	 * vanilla's own position" (the cursor is no longer over the list, e.g. the window was resized during the dialog).
+	 */
+	private int fileDropGap(List<Pack> movers, PendingFileDrop pending) {
+		@SuppressWarnings("unchecked")
+		List<Pack>[] lists = new List[]{profiles(AVAILABLE), profiles(SELECTED)};
+		TransferableSelectionList[] widgets = {list(AVAILABLE), list(SELECTED)};
+		DropTarget.Block[] refusal = {DropTarget.Block.NONE, DropTarget.Block.NONE};
+		DropTarget.Result result = DropTarget.compute(widgets, lists, movers.get(0), movers, AVAILABLE, pending.x(), pending.y(), pending.y(), refusal);
+		return result.list() == SELECTED ? result.modelGap() : -1;
+	}
+
+	/**
+	 * Enables the packs and slides them as one block to the gap (an index into the model's list, as in
+	 * {@link #crossList}; -1 keeps the position vanilla gave them).
+	 */
+	private void enableAt(List<PackSelectionModel.Entry> packs, List<Pack> moved, int gap) {
+		for (PackSelectionModel.Entry pack : packs) {
+			pack.select();
+		}
+		if (gap >= 0) {
+			List<Pack> selected = profiles(SELECTED);
+			List<Pack> before = new ArrayList<>(selected);
+			selected.removeAll(moved);
+			selected.addAll(Math.min(gap, selected.size()), moved);
+			if (!selected.equals(before)) {
+				refreshLists();
+			}
+		}
+		organizer().dragit$refreshEnabledProfiles();
 	}
 }
