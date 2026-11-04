@@ -1,5 +1,6 @@
 package dev.vercim.dragit.drag;
 
+import com.mojang.blaze3d.platform.Window;
 import dev.vercim.dragit.DragItSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -17,6 +18,27 @@ final class DragRenderer {
 		}
 		if (c.phase == DragController.Phase.DRAGGING || c.phase == DragController.Phase.SETTLING) {
 			drawGhost(c, context, delta);
+		}
+	}
+
+	/**
+	 * While files are dragged over the game window (26.3+, where SDL reports the hover): a frame along the inner edge
+	 * of the whole window, plus the frame of the list the files are over — the same frame a dragged pack shows.
+	 */
+	static void drawFileDropFrame(DragController c, GuiGraphicsExtractor context) {
+		if (c.fileHoverAlpha <= 0.005) {
+			return;
+		}
+		int color = DragItSettings.INDICATOR_COLOR;
+		Window window = Minecraft.getInstance().getWindow();
+		int w = window.getGuiScaledWidth();
+		int h = window.getGuiScaledHeight();
+		GuiCompat.outline(context, 1, 1, w - 2, h - 2, scale(color, 0.45 * c.fileHoverAlpha));
+		GuiCompat.outline(context, 3, 3, w - 6, h - 6, scale(color, 0.25 * c.fileHoverAlpha));
+		if (c.fileHoverList >= 0) {
+			TransferableSelectionList list = c.list(c.fileHoverList);
+			int right = ListGeometry.frameRight(list);
+			GuiCompat.outline(context, ListGeometry.left(list), ListGeometry.top(list), right - ListGeometry.left(list), ListGeometry.height(list), scale(color, 0.85 * c.fileHoverAlpha));
 		}
 	}
 

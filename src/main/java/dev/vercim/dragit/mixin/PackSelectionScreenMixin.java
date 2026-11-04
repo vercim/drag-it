@@ -2,6 +2,8 @@ package dev.vercim.dragit.mixin;
 
 import dev.vercim.dragit.drag.ControllerHolder;
 import dev.vercim.dragit.drag.DragController;
+import java.nio.file.Path;
+import java.util.List;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.network.chat.Component;
@@ -45,5 +47,23 @@ public abstract class PackSelectionScreenMixin extends Screen implements Control
 	@Inject(method = "onClose", at = @At("HEAD"))
 	private void dragit$onClose(CallbackInfo ci) {
 		this.dragit$getController().reset();
+	}
+
+	/**
+	 * Files dropped on the window: vanilla copies them into the pack folder (after its confirmation) and reloads. The
+	 * controller remembers where the cursor was, so a drop over the selected list can also enable the new packs there.
+	 */
+	@Inject(method = "onFilesDrop", at = @At("HEAD"))
+	private void dragit$onFilesDrop(List<Path> paths, CallbackInfo ci) {
+		this.dragit$getController().onFilesDrop(paths);
+	}
+
+	/**
+	 * Vanilla's reload of the pack lists (the directory watcher and the file drop both end in one); declared by every
+	 * version the mod supports. A pending file drop is applied here, once the new packs exist.
+	 */
+	@Inject(method = "reload", at = @At("TAIL"))
+	private void dragit$onPacksReloaded(CallbackInfo ci) {
+		this.dragit$getController().onPacksReloaded();
 	}
 }

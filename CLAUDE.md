@@ -47,11 +47,15 @@ src/main/java/dev/vercim/dragit/
     SelectionBands.java            — the multi-selection outline: one animated band per run of selected rows, tied to its packs
     ListGeometry.java              — row geometry of vanilla's TransferableSelectionList, recomputed from live state; counts pack rows only (the title row of 1.21.10+ is left out)
     GuiCompat.java                 — drawing, input and window calls whose shape differs between Minecraft versions (matrix stack, outline, text, replaying a click, window handle, the open screen, key, button and modifier codes)
+    FileDropHover.java             — state of an OS file drag hovering over the window (fed only by SDL, 26.3+); drives the window/zone frames
     ControllerHolder.java          — implemented by PackSelectionScreen (via mixin): one DragController per screen
   mixin/                           — one mixin per vanilla class it targets, named after that class
     MouseHandlerMixin.java         — MouseHandler.onPress HEAD: sees every press and release, can hold a press back
     ScreenMixin.java               — Screen.render HEAD/TAIL and Screen.keyPressed HEAD, no-ops for non-pack screens
-    PackSelectionScreenMixin.java  — owns the controller; cancels the gesture on re-layout and close
+    PackSelectionScreenMixin.java  — owns the controller; cancels the gesture on re-layout and close; onFilesDrop/reload hooks for file drops
+    SDLEventHandlerMixin.java      — 26.3+ only: SDL drop begin/complete events start and end the file-drag hover
+    WindowMixin.java               — 26.3+ only: SDL drop-position events (fall through to Window.handleEvent) track the cursor during a file drag
+    DragItMixinPlugin.java         — config plugin: skips the two SDL mixins where SDLEventHandler does not exist (pre-26.3)
     PackEntryMixin.java            — @WrapMethod render: hides the lifted row, slides rows, draws the selection highlights
     TransferableSelectionListMixin.java — renderSelection: skips vanilla's instant frame (targets AbstractSelectionList in 1.20.1 and from 1.21.10)
     accessor/                      — accessors for PackSelectionScreen, PackSelectionModel, TransferableSelectionList,
@@ -86,6 +90,8 @@ DRAGGING --release / Esc--> SETTLING (the lifted card glides into its slot) --ar
 - Any `RuntimeException` in the controller cancels the gesture and logs once (`fail()`); the screen must never be left stuck in a drag.
 - Multi-selection follows file-manager rules; the doc comment on `modifierClick` is the specification. The selection lives in one list at a time.
 - The selection outlines are drawn by `SelectionBands`, not per pack: one band per run of neighbouring selected rows, whose edges glide when the selection is edited. Edges and fades are critically damped springs (`SELECTION_EDGE_STIFFNESS`, `SELECTION_FADE_STIFFNESS`, natural frequencies in rad/s) that keep their velocity across a new target, so editing the selection faster than the animation plays bends the motion instead of restarting it; a new motion must keep that property (no first-order `1 - exp(-dt * rate)` blends for anything the user can retarget mid-way). Two instances: the multi-selection, and vanilla's single selection (the white frame, `single` mode: one frame per list that only fades in on the newly selected pack, never moves, and vanishes at once when its pack is deselected). A band is anchored to the first and last pack of its run, so it follows its packs when vanilla rebuilds the list and only selection edits animate. Rows draw their own slice of it from `PackEntryMixin`, inside the row's (possibly sliding) frame.
+- Files dropped on the window are vanilla's feature on every supported version (1.20.1 included): `PackSelectionScreen.onFilesDrop` confirms, copies the files into the pack folder and `reload()`s the lists. The controller remembers a drop over the selected list (`pendingFileDrop`, set in `onFilesDrop` HEAD, applied at `reload` TAIL once the new packs exist) and enables them at the drop gap, like a drag from the available list — a group drops its incompatible packs, a lone incompatible one gets vanilla's confirmation, deferred a frame because vanilla reopens the screen right after the reload. Model entries are found through `PackSelectionModel.getUnselected()`, not the widget list, so a search filter cannot hide a dropped pack from it.
+- The hover side of a file drop (the window and zone frames while files are held over the window) exists only on 26.3+: GLFW reports nothing between drag enter and drop, only SDL does (`SDLEventHandler`: begin / complete, and position events fall through its switch into `Window.handleEvent`, which ignores them; the hooks feed the version-free `FileDropHover`). SDL also fires `DROP_COMPLETE` when the drag leaves the window without dropping, which ends the hover.
 
 ## Mixin rules
 
@@ -99,7 +105,7 @@ DRAGGING --release / Esc--> SETTLING (the lifted card glides into its slot) --ar
 - From 1.21.10 the pack screen has a search box, so a list can show fewer packs than the model holds. A `DropTarget.Result` therefore carries two gaps: `gap` counts the shown rows (placeholder, sliding rows, marker) and `modelGap` is the index into the model's list that a drop applies. A pack lands right before the shown pack under the gap, or right after the last shown pack; hidden packs never decide the spot, but a hidden pinned pack still limits the allowed range.
 - Target strings use Mojang names. NeoForge applies them as they are; Forge 1.20.1 runs on SRG names, so the annotation processor turns them into a refmap at build time (the dev client does not read it, so only the packaged JAR proves it); Fabric's Loom remaps them into the mixin classes at build time (the JAR has no refmap; from 26.1 nothing is remapped at all). A renamed method in a new Minecraft version fails at runtime, not at compile time.
 - `Window.getWidth()` / `getHeight()` are the *framebuffer* size in Mojang names. Window pixels, which the mouse position is in, are `getScreenWidth()` / `getScreenHeight()`.
-- Add every new mixin class to `dragit.mixins.json`; `verifyJar` fails the build if a listed class is missing from the JAR.
+- Add every new mixin class to `dragit.mixins.json`; `verifyJar` fails the build if a listed class is missing from the JAR. A mixin whose target exists only in some versions (the SDL hooks, 26.3+) still ships in every JAR: the whole class body sits inside a Stonecutter condition (so the class compiles empty and `verifyJar` stays happy), and `DragItMixinPlugin` (`shouldApplyMixin`, gated on the target existing) keeps Mixin from applying it where the target is missing.
 
 Exact Minecraft signatures are in [docs/VERSION_NOTES.md](docs/VERSION_NOTES.md).
 

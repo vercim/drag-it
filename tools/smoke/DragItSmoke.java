@@ -51,16 +51,19 @@ public final class DragItSmoke {
 	static void makePacks() throws Exception {
 		Path dir = new File("resourcepacks").toPath().toAbsolutePath();
 		Files.createDirectories(dir);
-		int major = Integer.parseInt(Files.readString(new File("smoke.format").toPath()).trim());
-		String meta = major > 64
-			? "{\"pack\":{\"description\":\"Test pack\",\"pack_format\":" + major + ",\"min_format\":" + major + ",\"max_format\":" + major + "}}"
-			: "{\"pack\":{\"description\":\"Test pack\",\"pack_format\":" + major + "}}";
 		for (String n : new String[]{"TestA", "TestB", "TestC", "TestD", "TestE"}) {
 			Path p = dir.resolve(n);
 			Files.createDirectories(p);
-			Files.writeString(p.resolve("pack.mcmeta"), meta);
+			Files.writeString(p.resolve("pack.mcmeta"), packMeta());
 		}
 		System.out.println("SMOKE packs made in " + dir);
+	}
+
+	static String packMeta() throws Exception {
+		int major = Integer.parseInt(Files.readString(new File("smoke.format").toPath()).trim());
+		return major > 64
+			? "{\"pack\":{\"description\":\"Test pack\",\"pack_format\":" + major + ",\"min_format\":" + major + ",\"max_format\":" + major + "}}"
+			: "{\"pack\":{\"description\":\"Test pack\",\"pack_format\":" + major + "}}";
 	}
 
 	static void log(String s) {
@@ -596,6 +599,142 @@ public final class DragItSmoke {
 		shot("V7-multi-settled");
 	}
 
+	/**
+	 * D: files dropped on the window. Over the available list vanilla only copies them into the pack folder; over the
+	 * selected list the mod also enables them at the drop spot.
+	 */
+	static void fileDrops() {
+		Path staging = null;
+		try {
+			// both lists back to the top, so the drop gaps are where the checks expect them
+			onRender(() -> {
+				ctl().list(0).setScrollAmount(0);
+				ctl().list(1).setScrollAmount(0);
+			});
+			sleep(300);
+			staging = stagePacks("TestDropA", "TestDropB", "TestDropC", "TestDropD");
+			List<String> selBefore = modelSel();
+			// D1: over the available list: the pack joins the available list, the enabled list is untouched
+			dropFiles("D1", gap(0, 0), List.of(staging.resolve("TestDropA")));
+			expect("D1", "dropped pack joined the available list", modelAvail().contains("file/TestDropA"), true);
+			expect("D1", "nothing was enabled", modelSel(), selBefore);
+			// D2: over the top of the selected list: the pack is enabled at that spot
+			dropFiles("D2", gap(1, 0), List.of(staging.resolve("TestDropB")));
+			expect("D2", "dropped pack was enabled", modelSel().contains("file/TestDropB"), true);
+			expect("D2", "dropped pack took the drop spot", modelSel().get(0), "file/TestDropB");
+			// D3: two files at once, at gap 1: both enabled, in drop order, at the spot
+			List<String> expected = new ArrayList<>(modelSel());
+			expected.addAll(1, List.of("file/TestDropC", "file/TestDropD"));
+			dropFiles("D3", gap(1, 1), List.of(staging.resolve("TestDropC"), staging.resolve("TestDropD")));
+			expect("D3", "both packs enabled in drop order at the gap", modelSel(), expected);
+			// D4: the file-drag hover (driven by SDL on 26.3+): the window frame fades in and the hovered list is tracked
+			double[] scale = onRender(() -> {
+				com.mojang.blaze3d.platform.Window w = Minecraft.getInstance().getWindow();
+				return new double[]{(double) w.getScreenWidth() / w.getGuiScaledWidth(), (double) w.getScreenHeight() / w.getGuiScaledHeight()};
+			});
+			double[] overSelected = gap(1, 0);
+			onRender(() -> {
+				FileDropHover.begin();
+				FileDropHover.move(overSelected[0] * scale[0], overSelected[1] * scale[1]); // SDL reports window pixels
+			});
+			sleep(600);
+			expect("D4", "hover frame fades in over the selected list", onRender(() -> ctl().fileHoverAlpha > 0.2 && ctl().fileHoverList == 1), true);
+			shot("D4-file-hover");
+			double[] overAvailable = gap(0, 0);
+			onRender(() -> FileDropHover.move(overAvailable[0] * scale[0], overAvailable[1] * scale[1]));
+			sleep(400);
+			expect("D4", "hover follows the files to the available list", onRender(() -> ctl().fileHoverList), 0);
+			onRender(FileDropHover::end);
+			sleep(800);
+			expect("D4", "hover frame faded out after the drag ended", onRender(() -> ctl().fileHoverAlpha), 0.0);
+		} catch (Exception e) {
+			log("FAIL D: " + e);
+		} finally {
+			// take the copies vanilla made back out of the pack folder, so the next run starts clean
+			try {
+				Minecraft mc = Minecraft.getInstance();
+				onRender(() -> {
+					try {
+						Path dir = mc.getResourcePackDirectory();
+						for (String n : new String[]{"TestDropA", "TestDropB", "TestDropC", "TestDropD"}) {
+							deleteTree(dir.resolve(n));
+						}
+						mc.getResourcePackRepository().reload();
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				});
+				if (staging != null) {
+					deleteTree(staging);
+				}
+			} catch (Exception e) {
+				log("D cleanup failed: " + e);
+			}
+		}
+	}
+
+	/** Writes folder packs with the given names into a staging folder outside the pack folder; returns its path. */
+	static Path stagePacks(String... names) throws Exception {
+		Path staging = new File("smoke-staging").toPath().toAbsolutePath();
+		for (String n : names) {
+			Path p = staging.resolve(n);
+			Files.createDirectories(p);
+			Files.writeString(p.resolve("pack.mcmeta"), packMeta());
+		}
+		return staging;
+	}
+
+	static void deleteTree(Path p) throws Exception {
+		if (!Files.exists(p)) {
+			return;
+		}
+		try (var walk = Files.walk(p)) {
+			for (Path f : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+				Files.delete(f);
+			}
+		}
+	}
+
+	/** Drops the files at the pointer position through vanilla's own hook and confirms vanilla's dialog. */
+	static void dropFiles(String label, double[] at, List<Path> files) {
+		pointer(at[0], at[1]);
+		onRender(() -> screen().onFilesDrop(files));
+		sleep(800);
+		boolean clicked = onRender(() -> {
+			var s = GuiCompat.screen(Minecraft.getInstance());
+			if (s == null) {
+				return false;
+			}
+			for (var child : s.children()) {
+				if (!(child instanceof net.minecraft.client.gui.components.Button b) || !b.getMessage().equals(net.minecraft.network.chat.CommonComponents.GUI_YES)) {
+					continue;
+				}
+				for (var m : net.minecraft.client.gui.components.AbstractButton.class.getMethods()) {
+					if (!m.getName().equals("onPress")) {
+						continue;
+					}
+					try {
+						if (m.getParameterCount() == 0) {
+							m.invoke(b); // up to 1.21.11
+						} else { // 26.x: onPress(InputWithModifiers)
+							Class<?> infoClass = Class.forName("net.minecraft.client.input.MouseButtonInfo");
+							Object info = infoClass.getConstructor(int.class, int.class).newInstance(0, 0);
+							Object event = Class.forName("net.minecraft.client.input.MouseButtonEvent").getConstructor(double.class, double.class, infoClass).newInstance(0.0, 0.0, info);
+							m.invoke(b, event);
+						}
+						return true;
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				}
+			}
+			return false;
+		});
+		log(label + " confirm yes clicked=" + clicked);
+		sleep(1800);
+		log(label + " " + state());
+	}
+
 	static void realDrag(String label, double[] from, double[] to) {
 		pointer(from[0], from[1]);
 		HELD = true;
@@ -632,6 +771,8 @@ public final class DragItSmoke {
 					arrowClicks();
 				} else if (only.equals("V")) {
 					outlineMotion();
+				} else if (only.equals("D")) {
+					fileDrops();
 				}
 				log("DONE");
 				sleep(1500);
@@ -864,6 +1005,7 @@ public final class DragItSmoke {
 			keyboardRoundTrips();
 			arrowClicks();
 			outlineMotion();
+			fileDrops();
 			log("DONE");
 		} catch (Throwable t) {
 			log("FAILED " + t);
